@@ -19,7 +19,7 @@ class MessageSend(BaseModel):
         return v.strip()
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "receiver_id": 2,
                 "content": "Hello! How are you doing today?"
@@ -40,7 +40,7 @@ class MessageResponse(BaseModel):
     
     class Config:
         from_attributes = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 1,
                 "sender_id": 1,
@@ -63,7 +63,7 @@ class ChatHistory(BaseModel):
     other_username: Optional[str] = Field(None, description="Username of the other user")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "messages": [
                     {
@@ -92,7 +92,7 @@ class WebSocketMessage(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Message timestamp")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "type": "message",
                 "data": {
@@ -113,7 +113,7 @@ class WebSocketConnect(BaseModel):
     token: str = Field(..., description="Authentication token")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "user_id": 1,
                 "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -135,7 +135,7 @@ class MessageMarkRead(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "message_ids": [1, 2, 3]
             }
@@ -148,7 +148,7 @@ class MessageMarkReadResponse(BaseModel):
     message: str = Field(..., description="Success message")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "marked_count": 3,
                 "message": "Messages marked as read successfully"
@@ -166,7 +166,7 @@ class ChatHistoryQuery(BaseModel):
     include_read: Optional[bool] = Field(True, description="Whether to include read messages")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "other_user_id": 2,
                 "limit": 50,
@@ -182,7 +182,7 @@ class TypingIndicator(BaseModel):
     is_typing: bool = Field(..., description="Whether user is currently typing")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "user_id": 1,
                 "is_typing": True
@@ -197,7 +197,7 @@ class ConversationList(BaseModel):
     total_unread: int = Field(..., description="Total unread messages across all conversations")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "conversations": [
                     {
@@ -223,7 +223,7 @@ class MessageDelete(BaseModel):
     message_id: int = Field(..., gt=0, description="ID of the message to delete")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "message_id": 1
             }
@@ -236,7 +236,7 @@ class MessageDeleteResponse(BaseModel):
     deleted_message_id: int = Field(..., description="ID of the deleted message")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "message": "Message deleted successfully",
                 "deleted_message_id": 1
@@ -250,7 +250,7 @@ class WebSocketMessageType(BaseModel):
     data: dict = Field(..., description="Message data")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "type": "send_message",
                 "data": {
@@ -268,7 +268,7 @@ class OnlineStatusResponse(BaseModel):
     requesting_user: int = Field(..., description="ID of the requesting user")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "online_users": [1, 2, 3],
                 "total_online": 3,
@@ -285,7 +285,7 @@ class UserStatusResponse(BaseModel):
     checked_by: int = Field(..., description="ID of user who checked the status")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "user_id": 2,
                 "is_online": True,

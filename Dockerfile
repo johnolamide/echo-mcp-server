@@ -77,32 +77,5 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 # Development stage
 FROM production AS development
 
-# Switch back to root to install development dependencies
-USER root
-
-# Install development tools with retry logic and cache cleanup
-RUN apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get update --fix-missing \
-    && apt-get install -y --no-install-recommends \
-        git \
-        vim \
-        htop \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install development Python packages
-RUN pip install --no-cache-dir \
-    pytest \
-    pytest-asyncio \
-    pytest-cov \
-    black \
-    flake8 \
-    mypy \
-    debugpy
-
-# Switch back to appuser
-USER appuser
-
-# Development command with hot reload
+# Development command with hot reload (no additional packages due to network issues)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
