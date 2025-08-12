@@ -1,6 +1,7 @@
 """
 Authentication router with registration, login, token refresh, and email verification.
 """
+import logging
 from datetime import timedelta
 from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
@@ -15,7 +16,8 @@ from app.models.user import User, UserCreate
 from app.schemas.auth import (
     UserRegistration, UserLogin, UserResponse, TokenResponse, 
     TokenRefresh, TokenRefreshResponse, EmailVerificationResponse,
-    LogoutResponse, PasswordReset, PasswordResetConfirm
+    LogoutResponse, PasswordReset, PasswordResetConfirm,
+    AdminUserRegistration, AdminUserResponse
 )
 from app.utils.jwt_handler import jwt_handler
 from app.utils.email_sender import email_sender
@@ -900,3 +902,89 @@ async def get_current_user_info(
     Requires valid access token in Authorization header.
     """
     return UserResponse.from_orm(current_user)
+
+
+@router.post("/create-admin", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED)
+async def create_admin_user(
+    admin_data: AdminUserRegistration,
+    db: Session = Depends(get_db)
+):
+    """
+    Create an admin user account.
+    
+    This endpoint allows creating admin users with elevated privileges.
+    Requires a valid admin secret key for security.
+    
+    - **username**: Unique username for the admin account (3-50 characters)
+    - **email**: Valid email address (must be unique)
+    - **password**: Strong password (min 8 chars, uppercase, lowercase, digit, special char)
+    - **admin_secret**: Secret key required to create admin accounts
+    
+    Returns the created admin user information.
+    """
+    try:
+        # Verify admin secret key
+        if admin_data.admin_secret != settings.admin_secret_key:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid admin secret key"
+            )
+        
+        # Check if username already exists
+        existing_user_stmt = select(User).where(User.username == admin_data.username.lower())
+        existing_user = db.exec(existing_user_stmt).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Username already exists"
+            )
+        
+        # Check if email already exists
+        existing_email_stmt = select(User).where(User.email == admin_data.email.lower())
+        existing_email = db.exec(existing_email_stmt).first()
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Email already registered"
+            )
+        
+        # Hash password
+        hashed_password = PasswordHandler.hash_password(admin_data.password)
+        
+        # Create new admin user
+        new_admin = User(
+            username=admin_data.username.lower(),
+            email=admin_data.email.lower(),
+            hashed_password=hashed_password,
+            is_active=True,
+            is_verified=True,  # Admin users are automatically verified
+            is_admin=True      # Set admin privileges
+        )
+        
+        db.add(new_admin)
+        db.commit()
+        db.refresh(new_admin)
+        
+        return AdminUserResponse(
+            message="Admin user created successfully",
+            user_id=str(new_admin.id),
+            username=new_admin.username,
+            email=new_admin.email,
+            is_admin=True
+        )
+        
+    except HTTPException:
+        raise
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User with this email or username already exists"
+        )
+    except Exception as e:
+        db.rollback()
+        logging.getLogger(__name__).error(f"Admin user creation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Admin user creation failed. Please try again."
+        )

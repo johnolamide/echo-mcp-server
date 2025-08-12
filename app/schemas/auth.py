@@ -41,6 +41,64 @@ class UserRegistration(BaseModel):
         }
 
 
+class AdminUserRegistration(BaseModel):
+    """Schema for admin user registration."""
+    username: str = Field(..., min_length=3, max_length=50, description="Username for the admin account")
+    email: EmailStr = Field(..., description="Email address for the admin account")
+    password: str = Field(..., min_length=8, max_length=128, description="Password for the admin account")
+    admin_secret: str = Field(..., description="Admin creation secret key")
+    
+    @validator('username')
+    def validate_username(cls, v):
+        """Validate username format."""
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError('Username can only contain letters, numbers, underscores, and hyphens')
+        return v.lower()
+    
+    @validator('password')
+    def validate_password(cls, v):
+        """Validate password strength."""
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not re.search(r'[a-z]', v):
+            raise ValueError('Password must contain at least one lowercase letter')
+        if not re.search(r'\d', v):
+            raise ValueError('Password must contain at least one digit')
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+            raise ValueError('Password must contain at least one special character')
+        return v
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "username": "admin",
+                "email": "admin@example.com",
+                "password": "AdminSecure123!",
+                "admin_secret": "your-admin-secret-key"
+            }
+        }
+
+
+class AdminUserResponse(BaseModel):
+    """Schema for admin user creation response."""
+    message: str = Field(..., description="Success message")
+    user_id: str = Field(..., description="Created admin user ID")
+    username: str = Field(..., description="Admin username")
+    email: EmailStr = Field(..., description="Admin email")
+    is_admin: bool = Field(..., description="Admin status (always true)")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "message": "Admin user created successfully",
+                "user_id": "1",
+                "username": "admin",
+                "email": "admin@example.com",
+                "is_admin": True
+            }
+        }
+
+
 class UserLogin(BaseModel):
     """Schema for user login."""
     email: EmailStr = Field(..., description="Email address for login")

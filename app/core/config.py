@@ -68,6 +68,9 @@ class Settings(BaseSettings):
     password_min_length: int = 8
     bcrypt_rounds: int = 12
     
+    # Admin settings
+    admin_secret_key: str = "change-this-admin-secret-in-production"
+    
     @field_validator("jwt_secret_key")
     @classmethod
     def validate_secret_key(cls, v):
