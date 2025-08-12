@@ -271,11 +271,10 @@ uvicorn.log
 test*.py
 validate*.py
 *tests.py
+# !tests/*
 
-*SUMMARY.md
-*RESULTS.md
-*CLEAN.md
-*DEPENDENCIES.md
+*.md
+!README.md
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

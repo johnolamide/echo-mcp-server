@@ -265,6 +265,51 @@ Authorization: Bearer <access-token>
 }
 ```
 
+### Create Admin User
+
+**POST** `/auth/create-admin`
+
+Create an admin user account with elevated privileges.
+
+**Request Body:**
+```json
+{
+  "username": "admin",
+  "email": "admin@example.com",
+  "password": "AdminSecure123!",
+  "admin_secret": "your-admin-secret-key"
+}
+```
+
+**Response (201):**
+```json
+{
+  "message": "Admin user created successfully",
+  "user_id": "1",
+  "username": "admin",
+  "email": "admin@example.com",
+  "is_admin": true
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/auth/create-admin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "email": "admin@example.com",
+    "password": "AdminSecure123!",
+    "admin_secret": "change-this-admin-secret-in-production"
+  }'
+```
+
+**Security Notes:**
+- Requires a valid `admin_secret` key configured in environment variables
+- Admin users are automatically verified and have `is_admin: true`
+- Admin users can access all admin endpoints and manage other users
+- The admin secret should be kept secure and changed in production
+
 ---
 
 ## 💬 Chat Endpoints

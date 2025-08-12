@@ -195,12 +195,12 @@ class ExternalAPIService:
     
     def _prepare_request_data(self, service: Service, user_parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Prepare request data using the service template."""
-        request_template = service.get_request_template()
+        request_template = service.request_template or {}
         return self.template_processor.render_template(request_template, user_parameters)
     
     def _prepare_headers(self, service: Service) -> Dict[str, str]:
         """Prepare headers for the API call."""
-        headers = service.get_headers_template().copy()
+        headers = (service.headers_template or {}).copy()
         
         # Add API key if configured
         if service.encrypted_api_key and service.api_key_header:
@@ -264,7 +264,7 @@ class ExternalAPIService:
             response_data = {"raw_response": response.text}
         
         # Apply response mapping if configured
-        response_mapping = service.get_response_mapping()
+        response_mapping = service.response_mapping
         if response_mapping:
             try:
                 mapped_response = self.template_processor.render_template(
@@ -291,7 +291,7 @@ class ExternalAPIService:
         """
         try:
             # Extract required variables from template
-            request_template = service.get_request_template()
+            request_template = service.request_template or {}
             required_vars = self.template_processor.extract_template_variables(request_template)
             
             # Check if all required variables are provided
@@ -316,7 +316,7 @@ class ExternalAPIService:
             Dictionary containing parameter requirements and examples
         """
         try:
-            request_template = service.get_request_template()
+            request_template = service.request_template or {}
             required_vars = list(self.template_processor.extract_template_variables(request_template))
             
             # Generate example values based on variable names
