@@ -461,11 +461,11 @@ async def create_service(
             detail="User not found"
         )
     
-    # Verify user can manage services
-    if not current_user.can_manage_services():
+    # Verify user can manage services (admin only)
+    if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to create services"
+            detail="Insufficient permissions to create services. Admin access required."
         )
     
     # Check if service with same name and type already exists
@@ -537,8 +537,8 @@ async def update_service(
             detail="Service not found"
         )
     
-    # Verify user can modify this service
-    if not service.can_be_modified_by(current_user):
+    # Verify user can modify this service (admin or creator)
+    if not current_user.is_admin and service.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to update this service"
@@ -624,15 +624,15 @@ async def delete_service(
             detail="Service not found"
         )
     
-    # Verify user can delete this service
-    if not service.can_be_deleted_by(current_user):
+    # Verify user can delete this service (admin or creator)
+    if not current_user.is_admin and service.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to delete this service"
         )
     
     # Soft delete by deactivating instead of hard delete
-    service.deactivate()
+    service.is_active = False
     db.commit()
     
     return ServiceDeleteResponse(
@@ -669,8 +669,8 @@ async def update_service_status(
             detail="Service not found"
         )
     
-    # Verify user can modify this service
-    if not service.can_be_modified_by(current_user):
+    # Verify user can modify this service (admin or creator)
+    if not current_user.is_admin and service.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to update service status"
@@ -757,7 +757,10 @@ async def get_service_detail(
     
     # Create response with creator username
     response_data = ServiceDetailResponse.from_orm(service)
-    response_data.creator_username = service.creator_username
+    # Get creator username from the User relationship
+    creator_stmt = select(User).where(User.id == service.created_by)
+    creator = db.exec(creator_stmt).first()
+    response_data.creator_username = creator.username if creator else "Unknown"
     
     return response_data
 
@@ -942,13 +945,14 @@ async def get_service_schema(
     Get the parameter schema for a specific service.
     Shows what parameters are required to call the service.
     """
-    service = db.query(Service).filter(
+    service_stmt = select(Service).where(
         and_(
             Service.type == service_type.lower(),
-            Service.name.ilike(service_name),
+            Service.name.ilike(f"%{service_name}%"),
             Service.is_active == True
         )
-    ).first()
+    )
+    service = db.exec(service_stmt).first()
     
     if not service:
         raise HTTPException(
@@ -973,13 +977,14 @@ async def execute_service(
     Requires user authentication.
     """
     # Find the service
-    service = db.query(Service).filter(
+    service_stmt = select(Service).where(
         and_(
             Service.type == service_type.lower(),
-            Service.name.ilike(service_name),
+            Service.name.ilike(f"%{service_name}%"),
             Service.is_active == True
         )
-    ).first()
+    )
+    service = db.exec(service_stmt).first()
     
     if not service:
         raise HTTPException(
