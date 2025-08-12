@@ -33,10 +33,34 @@ class UserRegistration(BaseModel):
     
     class Config:
         schema_extra = {
-            "example": {
-                "username": "johndoe",
-                "email": "john.doe@example.com",
-                "password": "SecurePass123"
+            "examples": {
+                "regular_user": {
+                    "summary": "Regular User Registration",
+                    "description": "Registration data for a regular user account",
+                    "value": {
+                        "username": "johndoe",
+                        "email": "john.doe@example.com",
+                        "password": "SecurePass123"
+                    }
+                },
+                "developer_user": {
+                    "summary": "Developer User Registration",
+                    "description": "Registration data for a developer account",
+                    "value": {
+                        "username": "dev_sarah",
+                        "email": "sarah.developer@techcorp.com",
+                        "password": "DevSecure456!"
+                    }
+                },
+                "business_user": {
+                    "summary": "Business User Registration",
+                    "description": "Registration data for a business account",
+                    "value": {
+                        "username": "business_mike",
+                        "email": "mike.manager@businesscorp.com",
+                        "password": "BusinessPass789"
+                    }
+                }
             }
         }
 
@@ -150,20 +174,46 @@ class TokenResponse(BaseModel):
     
     class Config:
         schema_extra = {
-            "example": {
-                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                "token_type": "bearer",
-                "expires_in": 3600,
-                "user": {
-                    "id": 1,
-                    "username": "johndoe",
-                    "email": "john.doe@example.com",
-                    "is_active": True,
-                    "is_verified": True,
-                    "is_admin": False,
-                    "created_at": "2023-01-01T00:00:00Z",
-                    "updated_at": "2023-01-01T00:00:00Z"
+            "examples": {
+                "regular_user_login": {
+                    "summary": "Regular User Login",
+                    "description": "Successful login response for a regular user",
+                    "value": {
+                        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJqb2huZG9lIiwiZW1haWwiOiJqb2huLmRvZUBleGFtcGxlLmNvbSIsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNjQwOTk1MjAwfQ.example_signature",
+                        "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNjQxNjAwMDAwLCJ0eXBlIjoicmVmcmVzaCJ9.example_refresh_signature",
+                        "token_type": "bearer",
+                        "expires_in": 1800,
+                        "user": {
+                            "id": 1,
+                            "username": "johndoe",
+                            "email": "john.doe@example.com",
+                            "is_active": True,
+                            "is_verified": True,
+                            "is_admin": False,
+                            "created_at": "2023-01-01T00:00:00Z",
+                            "updated_at": "2023-01-01T00:00:00Z"
+                        }
+                    }
+                },
+                "admin_user_login": {
+                    "summary": "Admin User Login",
+                    "description": "Successful login response for an admin user",
+                    "value": {
+                        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwidXNlcm5hbWUiOiJhZG1pbiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJpc19hZG1pbiI6dHJ1ZSwiZXhwIjoxNjQwOTk1MjAwfQ.admin_example_signature",
+                        "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwiZXhwIjoxNjQxNjAwMDAwLCJ0eXBlIjoicmVmcmVzaCJ9.admin_refresh_signature",
+                        "token_type": "bearer",
+                        "expires_in": 1800,
+                        "user": {
+                            "id": 2,
+                            "username": "admin",
+                            "email": "admin@example.com",
+                            "is_active": True,
+                            "is_verified": True,
+                            "is_admin": True,
+                            "created_at": "2023-01-01T00:00:00Z",
+                            "updated_at": "2023-01-01T00:00:00Z"
+                        }
+                    }
                 }
             }
         }

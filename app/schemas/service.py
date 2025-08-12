@@ -76,33 +76,128 @@ class ServiceCreate(BaseModel):
     
     class Config:
         schema_extra = {
-            "example": {
-                "name": "Uber",
-                "type": "ride",
-                "description": "Uber ride booking service",
-                "api_base_url": "https://api.uber.com/v1",
-                "api_endpoint": "/requests",
-                "http_method": "POST",
-                "request_template": {
-                    "start_latitude": "{{pickup_lat}}",
-                    "start_longitude": "{{pickup_lng}}",
-                    "end_latitude": "{{destination_lat}}",
-                    "end_longitude": "{{destination_lng}}",
-                    "product_id": "{{ride_type}}"
+            "examples": {
+                "uber_ride_service": {
+                    "summary": "Uber Ride Service",
+                    "description": "Complete Uber ride booking service with real-time tracking",
+                    "value": {
+                        "name": "Uber Ride Service",
+                        "type": "ride",
+                        "description": "Complete Uber ride booking service with real-time tracking, multiple ride types, and fare estimation",
+                        "api_base_url": "https://api.uber.com/v1.2",
+                        "api_endpoint": "/requests",
+                        "http_method": "POST",
+                        "request_template": {
+                            "start_latitude": "{{pickup_lat}}",
+                            "start_longitude": "{{pickup_lng}}",
+                            "end_latitude": "{{destination_lat}}",
+                            "end_longitude": "{{destination_lng}}",
+                            "product_id": "{{ride_type}}",
+                            "fare_id": "{{fare_id}}",
+                            "surge_confirmation_id": "{{surge_confirmation_id}}",
+                            "payment_method_id": "{{payment_method_id}}",
+                            "passenger_count": "{{passenger_count}}"
+                        },
+                        "response_mapping": {
+                            "ride_id": "{{response.request_id}}",
+                            "status": "{{response.status}}",
+                            "eta": "{{response.eta}}",
+                            "driver_name": "{{response.driver.name}}",
+                            "driver_phone": "{{response.driver.phone_number}}",
+                            "vehicle_make": "{{response.vehicle.make}}",
+                            "vehicle_model": "{{response.vehicle.model}}",
+                            "license_plate": "{{response.vehicle.license_plate}}"
+                        },
+                        "headers_template": {
+                            "Authorization": "Bearer {{api_key}}",
+                            "Content-Type": "application/json",
+                            "Accept-Language": "en_US"
+                        },
+                        "api_key": "your_uber_server_token",
+                        "api_key_header": "Authorization",
+                        "timeout_seconds": 45,
+                        "retry_attempts": 3
+                    }
                 },
-                "response_mapping": {
-                    "ride_id": "{{response.request_id}}",
-                    "status": "{{response.status}}",
-                    "eta": "{{response.eta}}"
+                "weather_service": {
+                    "summary": "Weather API Service",
+                    "description": "OpenWeatherMap API integration for weather data",
+                    "value": {
+                        "name": "OpenWeather API",
+                        "type": "weather",
+                        "description": "Weather information service with current conditions, forecasts, and alerts",
+                        "api_base_url": "https://api.openweathermap.org/data/2.5",
+                        "api_endpoint": "/weather",
+                        "http_method": "GET",
+                        "request_template": {
+                            "q": "{{city}},{{country}}",
+                            "appid": "{{api_key}}",
+                            "units": "metric",
+                            "lang": "en"
+                        },
+                        "response_mapping": {
+                            "temperature": "{{response.main.temp}}",
+                            "feels_like": "{{response.main.feels_like}}",
+                            "description": "{{response.weather[0].description}}",
+                            "humidity": "{{response.main.humidity}}",
+                            "pressure": "{{response.main.pressure}}",
+                            "wind_speed": "{{response.wind.speed}}",
+                            "wind_direction": "{{response.wind.deg}}",
+                            "city_name": "{{response.name}}",
+                            "country": "{{response.sys.country}}",
+                            "sunrise": "{{response.sys.sunrise}}",
+                            "sunset": "{{response.sys.sunset}}"
+                        },
+                        "headers_template": {
+                            "User-Agent": "WeatherApp/1.0"
+                        },
+                        "api_key": "your_openweather_api_key",
+                        "api_key_header": null,
+                        "timeout_seconds": 15,
+                        "retry_attempts": 3
+                    }
                 },
-                "headers_template": {
-                    "Authorization": "Bearer {{api_key}}",
-                    "Content-Type": "application/json"
-                },
-                "api_key": "your_uber_api_key",
-                "api_key_header": "Authorization",
-                "timeout_seconds": 30,
-                "retry_attempts": 3
+                "payment_service": {
+                    "summary": "Payment Processing Service",
+                    "description": "Stripe payment processing integration",
+                    "value": {
+                        "name": "Stripe Payment",
+                        "type": "payment",
+                        "description": "Secure payment processing with Stripe API",
+                        "api_base_url": "https://api.stripe.com/v1",
+                        "api_endpoint": "/payment_intents",
+                        "http_method": "POST",
+                        "request_template": {
+                            "amount": "{{amount_cents}}",
+                            "currency": "{{currency}}",
+                            "payment_method": "{{payment_method_id}}",
+                            "confirmation_method": "manual",
+                            "confirm": true,
+                            "description": "{{description}}",
+                            "metadata": {
+                                "order_id": "{{order_id}}",
+                                "customer_id": "{{customer_id}}"
+                            }
+                        },
+                        "response_mapping": {
+                            "payment_id": "{{response.id}}",
+                            "status": "{{response.status}}",
+                            "amount": "{{response.amount}}",
+                            "currency": "{{response.currency}}",
+                            "client_secret": "{{response.client_secret}}",
+                            "created": "{{response.created}}"
+                        },
+                        "headers_template": {
+                            "Authorization": "Bearer {{api_key}}",
+                            "Content-Type": "application/x-www-form-urlencoded",
+                            "Stripe-Version": "2023-10-16"
+                        },
+                        "api_key": "sk_test_your_stripe_secret_key",
+                        "api_key_header": "Authorization",
+                        "timeout_seconds": 30,
+                        "retry_attempts": 2
+                    }
+                }
             }
         }
 
@@ -327,13 +422,48 @@ class ServiceExecuteRequest(BaseModel):
     
     class Config:
         schema_extra = {
-            "example": {
-                "parameters": {
-                    "pickup_lat": 40.7128,
-                    "pickup_lng": -74.0060,
-                    "destination_lat": 40.7589,
-                    "destination_lng": -73.9851,
-                    "ride_type": "uberx"
+            "examples": {
+                "uber_ride_request": {
+                    "summary": "Uber Ride Request",
+                    "description": "Request parameters for booking an Uber ride",
+                    "value": {
+                        "parameters": {
+                            "pickup_lat": 40.7128,
+                            "pickup_lng": -74.0060,
+                            "destination_lat": 40.7589,
+                            "destination_lng": -73.9851,
+                            "ride_type": "uberx",
+                            "fare_id": "fare_12345",
+                            "surge_confirmation_id": "surge_67890",
+                            "payment_method_id": "payment_abc123",
+                            "passenger_count": 2
+                        }
+                    }
+                },
+                "weather_request": {
+                    "summary": "Weather Data Request",
+                    "description": "Request parameters for getting weather information",
+                    "value": {
+                        "parameters": {
+                            "city": "New York",
+                            "country": "US",
+                            "api_key": "your_openweather_api_key"
+                        }
+                    }
+                },
+                "payment_request": {
+                    "summary": "Payment Processing Request",
+                    "description": "Request parameters for processing a payment",
+                    "value": {
+                        "parameters": {
+                            "amount_cents": 2500,
+                            "currency": "usd",
+                            "payment_method_id": "pm_1234567890",
+                            "description": "Order #12345 - Premium Service",
+                            "order_id": "order_12345",
+                            "customer_id": "cust_abc123"
+                        }
+                    }
                 }
             }
         }
@@ -349,17 +479,79 @@ class ServiceExecuteResponse(BaseModel):
     
     class Config:
         schema_extra = {
-            "example": {
-                "success": True,
-                "data": {
-                    "ride_id": "abc123",
-                    "status": "confirmed",
-                    "eta": 5,
-                    "driver_name": "John Doe"
+            "examples": {
+                "successful_uber_response": {
+                    "summary": "Successful Uber Ride Response",
+                    "description": "Successful response from Uber ride booking",
+                    "value": {
+                        "success": True,
+                        "data": {
+                            "ride_id": "request_abc123def456",
+                            "status": "confirmed",
+                            "eta": 5,
+                            "driver_name": "John Doe",
+                            "driver_phone": "+1-555-0123",
+                            "vehicle_make": "Toyota",
+                            "vehicle_model": "Camry",
+                            "license_plate": "ABC-1234"
+                        },
+                        "error": None,
+                        "status_code": 200,
+                        "execution_time_ms": 1250
+                    }
                 },
-                "error": None,
-                "status_code": 200,
-                "execution_time_ms": 1250
+                "successful_weather_response": {
+                    "summary": "Successful Weather Response",
+                    "description": "Successful response from weather API",
+                    "value": {
+                        "success": True,
+                        "data": {
+                            "temperature": 22.5,
+                            "feels_like": 24.1,
+                            "description": "partly cloudy",
+                            "humidity": 65,
+                            "pressure": 1013,
+                            "wind_speed": 3.2,
+                            "wind_direction": 180,
+                            "city_name": "New York",
+                            "country": "US",
+                            "sunrise": 1640692800,
+                            "sunset": 1640728800
+                        },
+                        "error": None,
+                        "status_code": 200,
+                        "execution_time_ms": 850
+                    }
+                },
+                "failed_service_response": {
+                    "summary": "Failed Service Response",
+                    "description": "Response when service call fails",
+                    "value": {
+                        "success": False,
+                        "data": None,
+                        "error": {
+                            "error": "Request failed",
+                            "message": "Invalid API key provided",
+                            "code": "INVALID_API_KEY"
+                        },
+                        "status_code": 401,
+                        "execution_time_ms": 320
+                    }
+                },
+                "timeout_response": {
+                    "summary": "Timeout Response",
+                    "description": "Response when service call times out",
+                    "value": {
+                        "success": False,
+                        "data": None,
+                        "error": {
+                            "error": "Request timeout",
+                            "message": "External API call timed out after 30 seconds"
+                        },
+                        "status_code": 408,
+                        "execution_time_ms": 30000
+                    }
+                }
             }
         }
 
@@ -391,21 +583,84 @@ class ServiceSchemaResponse(BaseModel):
     
     class Config:
         schema_extra = {
-            "example": {
-                "service_name": "Uber",
-                "service_type": "ride",
-                "required_parameters": ["pickup_lat", "pickup_lng", "destination_lat", "destination_lng"],
-                "parameter_descriptions": {
-                    "pickup_lat": "Pickup location latitude",
-                    "pickup_lng": "Pickup location longitude",
-                    "destination_lat": "Destination latitude",
-                    "destination_lng": "Destination longitude"
+            "examples": {
+                "uber_schema": {
+                    "summary": "Uber Service Schema",
+                    "description": "Parameter schema for Uber ride booking service",
+                    "value": {
+                        "service_name": "Uber Ride Service",
+                        "service_type": "ride",
+                        "required_parameters": [
+                            "pickup_lat", "pickup_lng", "destination_lat", "destination_lng",
+                            "ride_type", "fare_id", "surge_confirmation_id", "payment_method_id"
+                        ],
+                        "parameter_descriptions": {
+                            "pickup_lat": "Pickup location latitude (decimal degrees)",
+                            "pickup_lng": "Pickup location longitude (decimal degrees)",
+                            "destination_lat": "Destination latitude (decimal degrees)",
+                            "destination_lng": "Destination longitude (decimal degrees)",
+                            "ride_type": "Type of ride (uberx, uberxl, uberblack, etc.)",
+                            "fare_id": "Fare estimate ID from previous fare request",
+                            "surge_confirmation_id": "Surge pricing confirmation ID",
+                            "payment_method_id": "Payment method identifier"
+                        },
+                        "example_request": {
+                            "pickup_lat": 40.7128,
+                            "pickup_lng": -74.0060,
+                            "destination_lat": 40.7589,
+                            "destination_lng": -73.9851,
+                            "ride_type": "uberx",
+                            "fare_id": "fare_12345",
+                            "surge_confirmation_id": "surge_67890",
+                            "payment_method_id": "payment_abc123"
+                        }
+                    }
                 },
-                "example_request": {
-                    "pickup_lat": 40.7128,
-                    "pickup_lng": -74.0060,
-                    "destination_lat": 40.7589,
-                    "destination_lng": -73.9851
+                "weather_schema": {
+                    "summary": "Weather Service Schema",
+                    "description": "Parameter schema for weather information service",
+                    "value": {
+                        "service_name": "OpenWeather API",
+                        "service_type": "weather",
+                        "required_parameters": ["city", "api_key"],
+                        "parameter_descriptions": {
+                            "city": "City name for weather lookup",
+                            "country": "Country code (optional, ISO 3166)",
+                            "api_key": "OpenWeatherMap API key"
+                        },
+                        "example_request": {
+                            "city": "New York",
+                            "country": "US",
+                            "api_key": "your_openweather_api_key"
+                        }
+                    }
+                },
+                "payment_schema": {
+                    "summary": "Payment Service Schema",
+                    "description": "Parameter schema for payment processing service",
+                    "value": {
+                        "service_name": "Stripe Payment",
+                        "service_type": "payment",
+                        "required_parameters": [
+                            "amount_cents", "currency", "payment_method_id"
+                        ],
+                        "parameter_descriptions": {
+                            "amount_cents": "Payment amount in cents (e.g., 2500 for $25.00)",
+                            "currency": "Three-letter ISO currency code (e.g., 'usd', 'eur')",
+                            "payment_method_id": "Stripe payment method identifier",
+                            "description": "Payment description (optional)",
+                            "order_id": "Order identifier for tracking (optional)",
+                            "customer_id": "Customer identifier (optional)"
+                        },
+                        "example_request": {
+                            "amount_cents": 2500,
+                            "currency": "usd",
+                            "payment_method_id": "pm_1234567890",
+                            "description": "Order #12345 - Premium Service",
+                            "order_id": "order_12345",
+                            "customer_id": "cust_abc123"
+                        }
+                    }
                 }
             }
         }
