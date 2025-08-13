@@ -102,7 +102,26 @@ app = FastAPI(
     redoc_url="/redoc" if settings.debug else None,
 )
 
-mcp = FastApiMCP(app)
+mcp = FastApiMCP(
+    app,
+    include_operations=[
+        "register_user",
+        "register_admin",
+        "login",
+        "refresh_token",
+        "verify_email",
+        "resend_verification",
+        "logout",
+        "request_reset_password",
+        "reset_password",
+        "get_info",
+        "get_info",
+        "update_info"
+    ]
+)
+
+# MCP integration
+mcp.mount_http()
 
 
 # Add CORS middleware
@@ -311,13 +330,11 @@ app.include_router(
     tags=["Admin"]
 )
 
-# MCP integration
-mcp.mount_http()
 
+mcp.setup_server()
 
 if __name__ == "__main__":
     import uvicorn
-    
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",

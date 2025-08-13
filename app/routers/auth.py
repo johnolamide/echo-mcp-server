@@ -57,7 +57,7 @@ async def get_current_user(
     return user
 
 
-@router.post("/register", response_model=Dict[str, str], status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=Dict[str, str], status_code=status.HTTP_201_CREATED, operation_id="register_user")
 async def register_user(
     user_data: UserRegistration,
     background_tasks: BackgroundTasks,
@@ -133,7 +133,7 @@ async def register_user(
         )
 
 
-@router.post("/register-admin", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register-admin", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED, operation_id="register_admin")
 async def register_admin_user(
     admin_data: AdminUserRegistration,
     background_tasks: BackgroundTasks,
@@ -221,7 +221,7 @@ async def register_admin_user(
         )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse, operation_id="login")
 async def login_user(
     user_data: UserLogin,
     db: Session = Depends(get_db)
@@ -269,7 +269,7 @@ async def login_user(
     }
 
 
-@router.post("/refresh", response_model=TokenRefreshResponse)
+@router.post("/refresh", response_model=TokenRefreshResponse, operation_id="refresh_token")
 async def refresh_access_token(
     refresh_data: TokenRefresh,
     db: Session = Depends(get_db)
@@ -314,7 +314,7 @@ async def send_verification_email(user: User, background_tasks: BackgroundTasks)
     )
 
 
-@router.get("/verify-email", response_model=EmailVerificationResponse)
+@router.get("/verify-email", response_model=EmailVerificationResponse, operation_id="verify_email")
 async def verify_user_email(token: str, db: Session = Depends(get_db)):
     """
     Verify user's email address using the token from email.
@@ -348,7 +348,7 @@ async def verify_user_email(token: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid or expired verification token.")
 
 
-@router.post("/resend-verification", status_code=status.HTTP_200_OK)
+@router.post("/resend-verification", status_code=status.HTTP_200_OK, operation_id="resend_verification")
 async def resend_verification_email(
     email_data: Dict[str, str],
     background_tasks: BackgroundTasks,
@@ -374,7 +374,7 @@ async def resend_verification_email(
     return {"message": "Verification email sent. Please check your inbox."}
 
 
-@router.post("/logout", response_model=LogoutResponse)
+@router.post("/logout", response_model=LogoutResponse, operation_id="logout")
 async def logout_user(
     current_user: User = Depends(get_current_user)
 ):
@@ -386,7 +386,7 @@ async def logout_user(
     return {"message": f"User {current_user.username} logged out successfully."}
 
 
-@router.post("/request-password-reset", status_code=status.HTTP_200_OK)
+@router.post("/request-password-reset", status_code=status.HTTP_200_OK, operation_id="request_reset_password")
 async def request_password_reset(
     email_data: Dict[str, str],
     background_tasks: BackgroundTasks,
@@ -421,7 +421,7 @@ async def request_password_reset(
     return {"message": "If an account with that email exists, a password reset link has been sent."}
 
 
-@router.post("/reset-password", status_code=status.HTTP_200_OK)
+@router.post("/reset-password", status_code=status.HTTP_200_OK, operation_id="reset_password")
 async def reset_password(
     reset_data: PasswordResetConfirm,
     db: Session = Depends(get_db)
@@ -461,7 +461,7 @@ async def reset_password(
         raise HTTPException(status_code=400, detail="Invalid or expired password reset token.")
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=UserResponse, operation_id="get_info")
 async def get_current_user_profile(
     current_user: User = Depends(get_current_user)
 ):
@@ -471,7 +471,7 @@ async def get_current_user_profile(
     return UserResponse.from_orm(current_user)
 
 
-@router.put("/me", response_model=UserResponse)
+@router.put("/me", response_model=UserResponse, operation_id="update_info")
 async def update_current_user_profile(
     user_update: Dict[str, Any],
     current_user: User = Depends(get_current_user),
