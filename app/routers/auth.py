@@ -253,10 +253,10 @@ async def login_user(
         
     # Generate tokens
     access_token = jwt_handler.create_access_token(
-        {"sub": str(user.id)}, timedelta(minutes=settings.jwt_access_token_expire_minutes)
+        {"sub": str(user.id), "is_admin": user.is_admin}, timedelta(minutes=settings.jwt_access_token_expire_minutes)
     )
     refresh_token = jwt_handler.create_refresh_token(
-        {"sub": str(user.id)}
+        {"sub": str(user.id), "is_admin": user.is_admin }
     )
     
     return {
@@ -294,7 +294,7 @@ async def refresh_access_token(
         
     # Generate new access token
     new_access_token = jwt_handler.create_access_token(
-        {"sub": str(user.id)}, timedelta(minutes=settings.jwt_access_token_expire_minutes)
+        {"sub": str(user.id), "is_admin": user.is_admin}, timedelta(minutes=settings.jwt_access_token_expire_minutes)
     )
     
     return {"access_token": new_access_token, "token_type": "bearer"}

@@ -107,7 +107,7 @@ class UserLogin(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "email": "john",
+                "username": "john",
                 "password": "SecurePass123"
             }
         }
