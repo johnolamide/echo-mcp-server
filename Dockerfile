@@ -1,5 +1,5 @@
-# Multi-stage Dockerfile for FastAPI MCP Backend
-
+# Minimal Dockerfile - Skip Docker for now due to network issues
+# Run locally instead: python -m uvicorn app.main:app --reload
 # Build stage
 FROM python:3.11-slim AS builder
 

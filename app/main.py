@@ -13,6 +13,8 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from fastapi_mcp import FastApiMCP
+
 from app.core.config import settings
 from app.db.database import (
     db_manager, 
@@ -99,6 +101,8 @@ app = FastAPI(
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
 )
+
+mcp = FastApiMCP(app)
 
 
 # Add CORS middleware
@@ -307,7 +311,8 @@ app.include_router(
     tags=["Admin"]
 )
 
-# MCP integration removed - this is now a pure FastAPI application
+# MCP integration
+mcp.mount_http()
 
 
 if __name__ == "__main__":

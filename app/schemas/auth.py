@@ -101,13 +101,13 @@ class AdminUserResponse(BaseModel):
 
 class UserLogin(BaseModel):
     """Schema for user login."""
-    email: EmailStr = Field(..., description="Email address for login")
+    username: str = Field(..., description="Username for login")
     password: str = Field(..., description="Password for login")
     
     class Config:
         json_schema_extra = {
             "example": {
-                "email": "john.doe@example.com",
+                "email": "john",
                 "password": "SecurePass123"
             }
         }

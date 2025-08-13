@@ -101,7 +101,7 @@ async def get_user_details(
     # Get comprehensive user statistics
     total_messages_sent = db.exec(select(func.count(ChatMessage.id)).where(ChatMessage.sender_id == user_id)).one()
     total_messages_received = db.exec(select(func.count(ChatMessage.id)).where(ChatMessage.receiver_id == user_id)).one()
-    services_created_count = db.exec(select(func.count(Service.id)).where(Service.creator_id == user_id)).one()
+    services_created_count = db.exec(select(func.count(Service.id)).where(Service.created_by == user_id)).one()
     
     # For now, we don't have a last_login field in the User model
     # In a real implementation, you would track this in the authentication system
@@ -262,7 +262,7 @@ async def get_user_activity(
     )).one()
     
     services_created_period = db.exec(select(func.count(Service.id)).where(
-        Service.creator_id == user_id,
+        Service.created_by == user_id,
         Service.created_at >= start_date,
         Service.created_at <= end_date
     )).one()
@@ -274,7 +274,7 @@ async def get_user_activity(
     
     # Get created services
     created_services = db.exec(select(Service).where(
-        Service.creator_id == user_id
+        Service.created_by == user_id
     ).order_by(Service.created_at.desc())).all()
     
     return {
