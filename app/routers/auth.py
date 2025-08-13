@@ -105,7 +105,7 @@ async def register_user(
             email=user_data.email.lower(),
             hashed_password=hashed_password,
             is_active=True,
-            is_verified=False,
+            is_verified=True,
             is_admin=False
         )
 
@@ -114,9 +114,10 @@ async def register_user(
         db.refresh(new_user)
         
         # Send verification email
-        await send_verification_email(new_user, background_tasks)
+        # await send_verification_email(new_user, background_tasks)
         
-        return {"message": "User registered successfully. Please check your email for verification."}
+        # return {"message": "User registered successfully. Please check your email for verification."}
+        return {"message": "User registered successfully"}
     
     except IntegrityError:
         db.rollback()
