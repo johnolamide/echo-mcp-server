@@ -32,35 +32,11 @@ class UserRegistration(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
-            "examples": {
-                "regular_user": {
-                    "summary": "Regular User Registration",
-                    "description": "Registration data for a regular user account",
-                    "value": {
-                        "username": "johndoe",
-                        "email": "john.doe@example.com",
-                        "password": "SecurePass123"
-                    }
-                },
-                "developer_user": {
-                    "summary": "Developer User Registration",
-                    "description": "Registration data for a developer account",
-                    "value": {
-                        "username": "dev_sarah",
-                        "email": "sarah.developer@techcorp.com",
-                        "password": "DevSecure456!"
-                    }
-                },
-                "business_user": {
-                    "summary": "Business User Registration",
-                    "description": "Registration data for a business account",
-                    "value": {
-                        "username": "business_mike",
-                        "email": "mike.manager@businesscorp.com",
-                        "password": "BusinessPass789"
-                    }
-                }
+        json_schema_extra = {
+            "example": {
+                "username": "johndoe",
+                "email": "john.doe@example.com",
+                "password": "SecurePass123"
             }
         }
 
@@ -93,7 +69,7 @@ class AdminUserRegistration(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "username": "admin",
                 "email": "admin@example.com",
@@ -112,7 +88,7 @@ class AdminUserResponse(BaseModel):
     is_admin: bool = Field(..., description="Admin status (always true)")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "message": "Admin user created successfully",
                 "user_id": "1",
@@ -125,13 +101,13 @@ class AdminUserResponse(BaseModel):
 
 class UserLogin(BaseModel):
     """Schema for user login."""
-    email: EmailStr = Field(..., description="Email address for login")
+    username: str = Field(..., description="Username for login")
     password: str = Field(..., description="Password for login")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
-                "email": "john.doe@example.com",
+                "username": "john",
                 "password": "SecurePass123"
             }
         }
@@ -150,7 +126,7 @@ class UserResponse(BaseModel):
     
     class Config:
         from_attributes = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 1,
                 "username": "johndoe",
@@ -173,47 +149,21 @@ class TokenResponse(BaseModel):
     user: UserResponse = Field(..., description="User information")
     
     class Config:
-        schema_extra = {
-            "examples": {
-                "regular_user_login": {
-                    "summary": "Regular User Login",
-                    "description": "Successful login response for a regular user",
-                    "value": {
-                        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJqb2huZG9lIiwiZW1haWwiOiJqb2huLmRvZUBleGFtcGxlLmNvbSIsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNjQwOTk1MjAwfQ.example_signature",
-                        "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNjQxNjAwMDAwLCJ0eXBlIjoicmVmcmVzaCJ9.example_refresh_signature",
-                        "token_type": "bearer",
-                        "expires_in": 1800,
-                        "user": {
-                            "id": 1,
-                            "username": "johndoe",
-                            "email": "john.doe@example.com",
-                            "is_active": True,
-                            "is_verified": True,
-                            "is_admin": False,
-                            "created_at": "2023-01-01T00:00:00Z",
-                            "updated_at": "2023-01-01T00:00:00Z"
-                        }
-                    }
-                },
-                "admin_user_login": {
-                    "summary": "Admin User Login",
-                    "description": "Successful login response for an admin user",
-                    "value": {
-                        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwidXNlcm5hbWUiOiJhZG1pbiIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJpc19hZG1pbiI6dHJ1ZSwiZXhwIjoxNjQwOTk1MjAwfQ.admin_example_signature",
-                        "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwiZXhwIjoxNjQxNjAwMDAwLCJ0eXBlIjoicmVmcmVzaCJ9.admin_refresh_signature",
-                        "token_type": "bearer",
-                        "expires_in": 1800,
-                        "user": {
-                            "id": 2,
-                            "username": "admin",
-                            "email": "admin@example.com",
-                            "is_active": True,
-                            "is_verified": True,
-                            "is_admin": True,
-                            "created_at": "2023-01-01T00:00:00Z",
-                            "updated_at": "2023-01-01T00:00:00Z"
-                        }
-                    }
+        json_schema_extra = {
+            "example": {
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwidXNlcm5hbWUiOiJqb2huZG9lIiwiZW1haWwiOiJqb2huLmRvZUBleGFtcGxlLmNvbSIsImlzX2FkbWluIjpmYWxzZSwiZXhwIjoxNjQwOTk1MjAwfQ.example_signature",
+                "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNjQxNjAwMDAwLCJ0eXBlIjoicmVmcmVzaCJ9.example_refresh_signature",
+                "token_type": "bearer",
+                "expires_in": 1800,
+                "user": {
+                    "id": 1,
+                    "username": "johndoe",
+                    "email": "john.doe@example.com",
+                    "is_active": True,
+                    "is_verified": True,
+                    "is_admin": False,
+                    "created_at": "2023-01-01T00:00:00Z",
+                    "updated_at": "2023-01-01T00:00:00Z"
                 }
             }
         }
@@ -224,7 +174,7 @@ class TokenRefresh(BaseModel):
     refresh_token: str = Field(..., description="Refresh token to exchange for new access token")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
             }
@@ -238,7 +188,7 @@ class TokenRefreshResponse(BaseModel):
     expires_in: int = Field(..., description="Token expiration time in seconds")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "token_type": "bearer",
@@ -252,7 +202,7 @@ class EmailVerification(BaseModel):
     token: str = Field(..., description="Email verification token")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "token": "verification_token_here"
             }
@@ -265,7 +215,7 @@ class EmailVerificationResponse(BaseModel):
     verified: bool = Field(..., description="Whether verification was successful")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "message": "Email verified successfully",
                 "verified": True
@@ -278,7 +228,7 @@ class LogoutResponse(BaseModel):
     message: str = Field(..., description="Logout confirmation message")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "message": "Successfully logged out"
             }
@@ -290,7 +240,7 @@ class PasswordReset(BaseModel):
     email: EmailStr = Field(..., description="Email address for password reset")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "email": "john.doe@example.com"
             }
@@ -314,7 +264,7 @@ class PasswordResetConfirm(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "token": "reset_token_here",
                 "new_password": "NewSecurePass123"

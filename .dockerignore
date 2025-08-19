@@ -21,6 +21,7 @@ coverage.xml
 *.log
 .cache
 .mypy_cache
+.ignore
 
 # Virtual environments
 .env

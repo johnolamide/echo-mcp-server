@@ -17,7 +17,7 @@ class UserListResponse(BaseModel):
     admin_count: int = Field(..., description="Number of admin users")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "users": [
                     {
@@ -58,7 +58,7 @@ class UserDetailResponse(BaseModel):
     
     class Config:
         from_attributes = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 1,
                 "username": "johndoe",
@@ -85,7 +85,7 @@ class UserStatsResponse(BaseModel):
     recent_registrations: int = Field(..., description="Number of recent registrations (last 30 days)")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "total_users": 100,
                 "active_users": 85,

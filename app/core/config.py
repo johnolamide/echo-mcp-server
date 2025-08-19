@@ -71,6 +71,15 @@ class Settings(BaseSettings):
     # Admin settings
     admin_secret_key: str = "change-this-admin-secret-in-production"
     
+    # Bolt API settings
+    bolt_food_api_url: str = "https://node.bolt.eu/delivery-provider-pos"
+    bolt_food_integrator_id: str = ""
+    bolt_food_secret_key: str = ""
+    bolt_stores_api_url: str = "https://node.bolt.eu/delivery-provider-pos"
+    bolt_stores_integrator_id: str = ""
+    bolt_stores_secret_key: str = ""
+    bolt_region_id: int = 0
+    
     @field_validator("jwt_secret_key")
     @classmethod
     def validate_secret_key(cls, v):

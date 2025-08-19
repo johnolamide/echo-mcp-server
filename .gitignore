@@ -12,6 +12,9 @@ __pycache__/
 # C extensions
 *.so
 
+.ignore/
+.kiro/
+
 # Distribution / packaging
 .Python
 build/
@@ -60,6 +63,17 @@ cover/
 # Translations
 *.mo
 *.pot
+
+api_test_results.json
+comprehensive_api_test.py
+comprehensive_test_results.json
+create_admin.py
+debug_api_test.py
+final_comprehensive_test.py
+migrate_services_table.py
+simple_api_test.py
+working_api_test.py
+
 
 # Django stuff:
 *.log
