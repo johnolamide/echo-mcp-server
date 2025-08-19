@@ -10,8 +10,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Install system dependencies for building
 RUN apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    && apt-get update --fix-missing \
-    && apt-get install -y --no-install-recommends \
+    && apt-get update --allow-releaseinfo-change \
+    && apt-get install -y --no-install-recommends --allow-unauthenticated \
         gcc \
         g++ \
         libffi-dev \
@@ -42,8 +42,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Install runtime dependencies only
 RUN apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    && apt-get update --fix-missing \
-    && apt-get install -y --no-install-recommends \
+    && apt-get update --allow-releaseinfo-change \
+    && apt-get install -y --no-install-recommends --allow-unauthenticated \
         default-libmysqlclient-dev \
         curl \
         netcat-openbsd \

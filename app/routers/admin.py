@@ -19,7 +19,7 @@ from app.core.security import require_admin
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-@router.get("/users", response_model=UserListResponse)
+@router.get("/users", response_model=UserListResponse, operation_id="get_all_users")
 async def get_all_users(
     active_only: bool = Query(False, description="Filter to show only active users"),
     verified_only: bool = Query(False, description="Filter to show only verified users"),
@@ -78,7 +78,7 @@ async def get_all_users(
     )
 
 
-@router.get("/users/{user_id}", response_model=UserDetailResponse)
+@router.get("/users/{user_id}", response_model=UserDetailResponse, operation_id="get_user_details")
 async def get_user_details(
     user_id: int,
     db: Session = Depends(get_db),
@@ -126,7 +126,7 @@ async def get_user_details(
     return user_detail
 
 
-@router.get("/users/stats/summary", response_model=UserStatsResponse)
+@router.get("/users/stats/summary", response_model=UserStatsResponse, operation_id="get_user_statistics_summary")
 async def get_user_statistics(
     db: Session = Depends(get_db),
     current_user_token: dict = Depends(require_admin)
@@ -157,7 +157,7 @@ async def get_user_statistics(
     )
 
 
-@router.get("/users/search/advanced", response_model=UserListResponse)
+@router.get("/users/search/advanced", response_model=UserListResponse, operation_id="advanced_user_search")
 async def advanced_user_search(
     query: Optional[str] = Query(None, description="Search query for username or email"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
@@ -224,7 +224,7 @@ async def advanced_user_search(
     )
 
 
-@router.get("/users/{user_id}/activity", response_model=dict)
+@router.get("/users/{user_id}/activity", response_model=dict, operation_id="get_user_activity")
 async def get_user_activity(
     user_id: int,
     days: int = Query(30, ge=1, le=365, description="Number of days to look back for activity"),

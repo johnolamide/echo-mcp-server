@@ -1,0 +1,14 @@
+# flake8: noqa
+
+# import apis into api package
+from openapi_client.api.menu_integration_api import MenuIntegrationApi
+from openapi_client.api.order_integration_api import OrderIntegrationApi
+from openapi_client.api.pim_integration_categories_and_ordering_api import PIMIntegrationCategoriesAndOrderingApi
+from openapi_client.api.pim_integration_fees_api import PIMIntegrationFeesApi
+from openapi_client.api.pim_integration_menu_publishing_api import PIMIntegrationMenuPublishingApi
+from openapi_client.api.pim_integration_pricing_api import PIMIntegrationPricingApi
+from openapi_client.api.pim_integration_products_api import PIMIntegrationProductsApi
+from openapi_client.api.pim_integration_sections_layout_api import PIMIntegrationSectionsLayoutApi
+from openapi_client.api.provider_integration_api import ProviderIntegrationApi
+from openapi_client.api.warehouse_integration_api import WarehouseIntegrationApi
+

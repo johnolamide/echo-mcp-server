@@ -23,6 +23,7 @@ from app.db.database import (
 )
 from app.db.redis_client import init_redis, close_redis, redis_manager
 from app.routers import auth, chat, services, admin
+from app.api.routes.bolt import food, stores, webhooks, demo
 
 # Configure logging
 logging.basicConfig(
@@ -104,20 +105,20 @@ app = FastAPI(
 
 mcp = FastApiMCP(
     app,
-    include_operations=[
-        "register_user",
-        "register_admin",
-        "login",
-        "refresh_token",
-        "verify_email",
-        "resend_verification",
-        "logout",
-        "request_reset_password",
-        "reset_password",
-        "get_info",
-        "get_info",
-        "update_info"
-    ]
+    # include_operations=[
+    #     "register_user",
+    #     "register_admin",
+    #     "login",
+    #     "refresh_token",
+    #     "verify_email",
+    #     "resend_verification",
+    #     "logout",
+    #     "request_reset_password",
+    #     "reset_password",
+    #     "get_info",
+    #     "get_info",
+    #     "update_info"
+    # ]
 )
 
 # MCP integration
@@ -320,14 +321,39 @@ app.include_router(
     tags=["Chat"]
 )
 
-app.include_router(
-    services.router,
-    tags=["Services"]
-)
+# app.include_router(
+#     services.router,
+#     tags=["Services"]
+# )
 
 app.include_router(
     admin.router,
     tags=["Admin"]
+)
+
+# Register Bolt API routes
+app.include_router(
+    food.router,
+    prefix="/api",
+    tags=["Bolt Food"]
+)
+
+app.include_router(
+    stores.router,
+    prefix="/api",
+    tags=["Bolt Stores"]
+)
+
+app.include_router(
+    webhooks.router,
+    prefix="/api",
+    tags=["Bolt Webhooks"]
+)
+
+app.include_router(
+    demo.router,
+    prefix="/api",
+    tags=["Bolt Demo & Testing"]
 )
 
 

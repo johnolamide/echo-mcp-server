@@ -23,7 +23,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("/send", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/send", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, operation_id="send_message")
 async def send_message(
     message_data: MessageSend,
     current_user: User = Depends(get_current_user),
@@ -94,7 +94,7 @@ async def send_message(
         )
 
 
-@router.get("/history/{other_user_id}", response_model=ChatHistory)
+@router.get("/history/{other_user_id}", response_model=ChatHistory, operation_id="get_chat_history")
 async def get_chat_history(
     other_user_id: int,
     current_user: User = Depends(get_current_user),
@@ -164,7 +164,7 @@ async def get_chat_history(
     )
 
 
-@router.post("/mark-read", response_model=MessageMarkReadResponse)
+@router.post("/mark-read", response_model=MessageMarkReadResponse, operation_id="mark_messages_as_read")
 async def mark_messages_as_read(
     read_data: MessageMarkRead,
     current_user: User = Depends(get_current_user),
@@ -203,7 +203,7 @@ async def mark_messages_as_read(
     )
 
 
-@router.get("/conversations", response_model=ConversationList)
+@router.get("/conversations", response_model=ConversationList, operation_id="get_user_conversations")
 async def get_user_conversations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -281,7 +281,7 @@ async def get_user_conversations(
     )
 
 
-@router.get("/status/{user_id}", response_model=UserStatusResponse)
+@router.get("/status/{user_id}", response_model=UserStatusResponse, operation_id="get_user_online_status")
 async def get_user_online_status(
     user_id: int,
     current_user: User = Depends(get_current_user)
@@ -293,7 +293,7 @@ async def get_user_online_status(
     return UserStatusResponse(user_id=user_id, is_online=is_online)
 
 
-@router.get("/online-users", response_model=OnlineStatusResponse)
+@router.get("/online-users", response_model=OnlineStatusResponse, operation_id="get_all_online_users")
 async def get_all_online_users(
     current_user: User = Depends(get_current_user)
 ):
