@@ -79,7 +79,7 @@ services:
       - SMTP_PASSWORD=
       - EMAIL_FROM=
       # CORS settings
-      - CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080", "http://localhost:8000"]
+      - CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"]
       - CORS_ALLOW_CREDENTIALS=true
     volumes:
       - ./app:/app/app:ro # Mount for development hot reload

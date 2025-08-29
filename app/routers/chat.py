@@ -12,8 +12,8 @@ from app.models.chat import ChatMessage
 from app.models.user import User
 from app.schemas.chat import (
     MessageSend, MessageResponse, ChatHistory, MessageMarkRead, 
-    MessageMarkReadResponse, ConversationList, OnlineStatusResponse,
-    UserStatusResponse
+    MessageMarkReadBySender, MessageMarkReadResponse, ConversationList, OnlineStatusResponse,
+    UserStatusResponse, UserBasicInfo, UsersListResponse
 )
 from app.routers.auth import get_current_user
 from app.utils.websocket_manager import connection_manager, chat_handler
@@ -156,17 +156,26 @@ async def get_chat_history(
             )
         )
     
+    # Count unread messages from the other user to current user
+    unread_count_query = select(func.count(ChatMessage.id)).where(
+        ChatMessage.sender_id == other_user_id,
+        ChatMessage.receiver_id == current_user.id,
+        ChatMessage.is_read == False
+    )
+    unread_count = db.exec(unread_count_query).one()
+    
     return ChatHistory(
         messages=formatted_messages,
-        total=total_count,
-        limit=limit,
-        offset=offset
+        total_messages=total_count,
+        unread_count=unread_count,
+        other_user_id=other_user_id,
+        other_username=other_user.username
     )
 
 
 @router.post("/mark-read", response_model=MessageMarkReadResponse, operation_id="mark_messages_as_read")
 async def mark_messages_as_read(
-    read_data: MessageMarkRead,
+    read_data: MessageMarkReadBySender,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -186,7 +195,7 @@ async def mark_messages_as_read(
     if not messages_to_update:
         return MessageMarkReadResponse(
             message="No unread messages from this user.",
-            updated_count=0
+            marked_count=0
         )
         
     updated_count = 0
@@ -199,7 +208,7 @@ async def mark_messages_as_read(
     
     return MessageMarkReadResponse(
         message=f"Successfully marked {updated_count} messages as read.",
-        updated_count=updated_count
+        marked_count=updated_count
     )
 
 
@@ -300,8 +309,56 @@ async def get_all_online_users(
     """
     Get a list of all currently online users.
     """
-    online_user_ids = await connection_manager.get_online_user_ids()
-    return OnlineStatusResponse(online_users=online_user_ids)
+    online_user_ids = await connection_manager.get_online_users()
+    return OnlineStatusResponse(
+        online_users=online_user_ids,
+        total_online=len(online_user_ids),
+        requesting_user=current_user.id
+    )
+
+
+@router.get("/users", response_model=UsersListResponse, operation_id="get_chat_users")
+async def get_chat_users(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get a list of all active and verified users for chat purposes.
+    
+    This endpoint returns basic user information (ID, username, online status)
+    for all active and verified users except the current user.
+    """
+    # Get all active and verified users except the current user
+    users = db.exec(select(User).where(
+        User.id != current_user.id,
+        User.is_active == True,
+        User.is_verified == True
+    ).order_by(User.username)).all()
+    
+    # Get online user IDs
+    online_user_ids = await connection_manager.get_online_users()
+    online_user_ids_set = set(online_user_ids)
+    
+    # Build user list with online status
+    users_list = []
+    online_count = 0
+    
+    for user in users:
+        is_online = user.id in online_user_ids_set
+        if is_online:
+            online_count += 1
+            
+        users_list.append(UserBasicInfo(
+            id=user.id,
+            username=user.username,
+            is_online=is_online
+        ))
+    
+    return UsersListResponse(
+        users=users_list,
+        total_users=len(users_list),
+        online_count=online_count
+    )
 
 
 @router.websocket("/ws/{token}")
@@ -318,17 +375,21 @@ async def websocket_endpoint(
     - Manages user online status.
     """
     try:
-        payload = await verify_token(token, "access")
+        payload = verify_token(token)
+        if not payload:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
         user_id = payload.get("sub")
         if not user_id:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
-            
+
         user = db.get(User, user_id)
         if not user or not user.is_active:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
-            
+
     except Exception:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return

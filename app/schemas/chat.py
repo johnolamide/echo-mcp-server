@@ -43,7 +43,7 @@ class MessageResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "id": 1,
-                "sender_id": 1,
+               
                 "receiver_id": 2,
                 "content": "Hello! How are you doing today?",
                 "timestamp": "2023-01-01T12:00:00Z",
@@ -138,6 +138,18 @@ class MessageMarkRead(BaseModel):
         json_schema_extra = {
             "example": {
                 "message_ids": [1, 2, 3]
+            }
+        }
+
+
+class MessageMarkReadBySender(BaseModel):
+    """Schema for marking all messages from a sender as read."""
+    sender_id: int = Field(..., gt=0, description="ID of the sender whose messages to mark as read")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "sender_id": 2
             }
         }
 
@@ -291,5 +303,49 @@ class UserStatusResponse(BaseModel):
                 "is_online": True,
                 "connection_count": 1,
                 "checked_by": 1
+            }
+        }
+
+
+class UserBasicInfo(BaseModel):
+    """Schema for basic user information in chat."""
+    id: int = Field(..., description="User ID")
+    username: str = Field(..., description="Username")
+    is_online: bool = Field(..., description="Whether user is currently online")
+    
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": 2,
+                "username": "janedoe",
+                "is_online": True
+            }
+        }
+
+
+class UsersListResponse(BaseModel):
+    """Schema for users list response in chat."""
+    users: List[UserBasicInfo] = Field(..., description="List of users")
+    total_users: int = Field(..., description="Total number of users")
+    online_count: int = Field(..., description="Number of online users")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "users": [
+                    {
+                        "id": 2,
+                        "username": "janedoe",
+                        "is_online": True
+                    },
+                    {
+                        "id": 3,
+                        "username": "bobsmith",
+                        "is_online": False
+                    }
+                ],
+                "total_users": 2,
+                "online_count": 1
             }
         }
