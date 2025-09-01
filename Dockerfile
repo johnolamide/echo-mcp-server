@@ -1,8 +1,8 @@
-# Alternative Dockerfile using AWS Linux 2 with Python
-# This completely avoids Docker Hub by using AWS Linux base image
+# Alternative Dockerfile using Python slim image with Docker Hub auth
+# This uses the original approach but with Docker Hub authentication
 
-# Use AWS Linux 2 as base (no Docker Hub authentication needed)
-FROM public.ecr.aws/amazonlinux/amazonlinux:2
+# Use Python 3.11 slim image (requires Docker Hub authentication)
+FROM python:3.11-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -10,39 +10,61 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
     PATH="/opt/venv/bin:$PATH"
 
-# Install Python 3.11 and development tools
-RUN yum update -y && \
-    yum install -y gcc openssl-devel bzip2-devel libffi-devel zlib-devel wget tar gzip && \
-    cd /opt && \
-    wget https://www.python.org/ftp/python/3.11.5/Python-3.11.5.tgz && \
-    tar xzf Python-3.11.5.tgz && \
-    cd Python-3.11.5 && \
-    ./configure --enable-optimizations && \
-    make altinstall && \
-    ln -s /usr/local/bin/python3.11 /usr/bin/python3 && \
-    ln -s /usr/local/bin/pip3.11 /usr/bin/pip3 && \
-    cd /opt && \
-    rm -rf Python-3.11.5* && \
-    yum clean all
+# Install system dependencies for building
+RUN apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get update --allow-releaseinfo-change \
+    && apt-get install -y --no-install-recommends --allow-unauthenticated \
+        gcc \
+        g++ \
+        libffi-dev \
+        libssl-dev \
+        default-libmysqlclient-dev \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment
-RUN python3 -m venv /opt/venv
+RUN python -m venv /opt/venv
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Create app directory
+# Production stage
+FROM python:3.11-slim AS production
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PATH="/opt/venv/bin:$PATH"
+
+# Install runtime dependencies only
+RUN apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get update --allow-releaseinfo-change \
+    && apt-get install -y --no-install-recommends --allow-unauthenticated \
+        default-libmysqlclient-dev \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Create app user
+RUN adduser --disabled-password --gecos '' appuser \
+    && chown -R appuser:appuser /opt/venv \
+    && chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Set working directory
 WORKDIR /app
 
 # Copy application code
-COPY app/ ./app/
-
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+COPY --chown=appuser:appuser app/ ./app/
 
 # Expose port
 EXPOSE 8000
@@ -51,5 +73,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Start application
+# Run the application
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
