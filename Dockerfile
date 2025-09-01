@@ -1,8 +1,8 @@
-# Alternative Dockerfile using AWS CodeBuild managed image
-# This avoids Docker Hub rate limits by using AWS managed base images
+# Alternative Dockerfile using AWS Linux 2 with Python
+# This completely avoids Docker Hub by using AWS Linux base image
 
-# Use AWS CodeBuild managed Python image
-FROM public.ecr.aws/codebuild/amazonlinux2-x86_64-base:3.0
+# Use AWS Linux 2 as base (no Docker Hub authentication needed)
+FROM public.ecr.aws/amazonlinux/amazonlinux:2
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -10,9 +10,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
     PATH="/opt/venv/bin:$PATH"
 
-# Install Python and system dependencies
+# Install Python 3.11 and development tools
 RUN yum update -y && \
-    yum install -y python3 python3-pip python3-devel gcc && \
+    yum install -y gcc openssl-devel bzip2-devel libffi-devel zlib-devel wget tar && \
+    cd /opt && \
+    wget https://www.python.org/ftp/python/3.11.5/Python-3.11.5.tgz && \
+    tar xzf Python-3.11.5.tgz && \
+    cd Python-3.11.5 && \
+    ./configure --enable-optimizations && \
+    make altinstall && \
+    ln -s /usr/local/bin/python3.11 /usr/bin/python3 && \
+    ln -s /usr/local/bin/pip3.11 /usr/bin/pip3 && \
+    cd /opt && \
+    rm -rf Python-3.11.5* && \
     yum clean all
 
 # Create virtual environment
