@@ -1,0 +1,32 @@
+# Core framework
+fastapi[standard]>=0.111.0  # Includes Starlette, AnyIO 4.x, Uvicorn, and HTTPX
+
+# Database (TiDB/MySQL) with SQLModel
+sqlmodel>=0.0.24
+mysql-connector-python>=8.2.0
+cryptography>=41.0.7  # For MySQL SSL and Fernet encryption
+
+# MCP Library
+fastapi-mcp
+
+# Redis
+redis>=5.0.1
+
+# Authentication & security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Config & environment
+pydantic[email]
+pydantic-settings
+python-dotenv>=1.0.0
+
+# HTTP client for external requests
+httpx
+
+# Development dependencies (optional - comment out for production)
+# pytest
+# pytest-asyncio
+# black
+# isort
+# mypy
