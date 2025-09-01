@@ -22,6 +22,17 @@ Parameters:
     Description: 'GitHub personal access token with repo permissions'
     NoEcho: true
 
+  DockerHubUsername:
+    Type: String
+    Description: 'Docker Hub username (optional - for avoiding rate limits)'
+    Default: ''
+
+  DockerHubPassword:
+    Type: String
+    Description: 'Docker Hub password or access token (optional - for avoiding rate limits)'
+    NoEcho: true
+    Default: ''
+
   EnvironmentName:
     Type: String
     Description: 'Environment name (dev, staging, prod)'
@@ -64,6 +75,10 @@ Resources:
             Value: !Ref AWS::AccountId
           - Name: IMAGE_REPO_NAME
             Value: !Sub '${AWS::StackName}-repo'
+          - Name: DOCKERHUB_USERNAME
+            Value: !Ref DockerHubUsername
+          - Name: DOCKERHUB_PASSWORD
+            Value: !Ref DockerHubPassword
       Source:
         Type: CODEPIPELINE
         BuildSpec: buildspec.yml
