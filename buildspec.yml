@@ -11,6 +11,15 @@ phases:
       - echo "Logging in to Amazon ECR..."
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       
+      # Authenticate with Docker Hub (optional but recommended)
+      - |
+        if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_PASSWORD" ]; then
+          echo "Logging in to Docker Hub..."
+          echo $DOCKERHUB_PASSWORD | docker login --username $DOCKERHUB_USERNAME --password-stdin
+        else
+          echo "Docker Hub credentials not provided - using unauthenticated access"
+        fi
+      
       # Install Python dependencies for testing
       - echo "Installing Python dependencies..."
       - pip install --upgrade pip
