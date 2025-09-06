@@ -13,6 +13,7 @@ phases:
       - echo "Installing dependencies..."
       - pip install --upgrade pip
       - pip install -r requirements.txt
+      - pip install pytest  # For running tests in pre_build phase
 
   pre_build:
     commands:
