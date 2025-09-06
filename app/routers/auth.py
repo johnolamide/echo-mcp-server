@@ -1,5 +1,10 @@
 """
-Authentication router with registration, login, token refresh, and email verification.
+Authentication router with registration, login,         raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive"
+        )
+    
+    return success_response(message="User retrieved successfully", data=user)refresh, and email verification.
 """
 import logging
 from datetime import timedelta
@@ -21,6 +26,7 @@ from app.schemas.auth import (
 )
 from app.utils.jwt_handler import jwt_handler
 from app.utils.email_sender import email_sender
+from app.utils import success_response, error_response
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 security = HTTPBearer()
@@ -117,7 +123,10 @@ async def register_user(
         # await send_verification_email(new_user, background_tasks)
         
         # return {"message": "User registered successfully. Please check your email for verification."}
-        return {"message": "User registered successfully"}
+        return success_response(
+            message="User registered successfully",
+            data={"user_id": new_user.id, "username": new_user.username}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -199,12 +208,15 @@ async def register_admin_user(
         db.commit()
         db.refresh(new_admin)
         
-        return AdminUserResponse(
+        return success_response(
             message="Admin user created successfully",
-            user_id=str(new_admin.id),
-            username=new_admin.username,
-            email=new_admin.email,
-            is_admin=True
+            data=AdminUserResponse(
+                message="Admin user created successfully",
+                user_id=str(new_admin.id),
+                username=new_admin.username,
+                email=new_admin.email,
+                is_admin=True
+            )
         )
     
     except IntegrityError:
@@ -260,13 +272,23 @@ async def login_user(
         {"sub": str(user.id), "is_admin": user.is_admin }
     )
     
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "expires_in": settings.jwt_access_token_expire_minutes * 60,  # Convert minutes to seconds
-        "user": UserResponse.from_orm(user)
-    }
+    user_data = UserResponse.from_orm(user).dict()
+    # Convert datetime fields to ISO format strings
+    if user_data.get('created_at'):
+        user_data['created_at'] = user_data['created_at'].isoformat()
+    if user_data.get('updated_at'):
+        user_data['updated_at'] = user_data['updated_at'].isoformat()
+
+    return success_response(
+        message="Login successful",
+        data={
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "expires_in": settings.jwt_access_token_expire_minutes * 60,
+            "user": user_data
+        }
+    )
 
 
 @router.post("/refresh", response_model=TokenRefreshResponse, operation_id="refresh_token")
@@ -298,7 +320,10 @@ async def refresh_access_token(
         {"sub": str(user.id), "is_admin": user.is_admin}, timedelta(minutes=settings.jwt_access_token_expire_minutes)
     )
     
-    return {"access_token": new_access_token, "token_type": "bearer"}
+    return success_response(
+        message="Token refreshed successfully",
+        data={"access_token": new_access_token, "token_type": "bearer"}
+    )
 
 
 async def send_verification_email(user: User, background_tasks: BackgroundTasks):
@@ -332,13 +357,13 @@ async def verify_user_email(token: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="User not found.")
             
         if user.is_verified:
-            return {"message": "Email already verified."}
+            return success_response(message="Email already verified.")
             
         user.is_verified = True
         db.add(user)
         db.commit()
         
-        return {"message": "Email verified successfully. You can now log in."}
+        return success_response(message="Email verified successfully. You can now log in.")
         
     except HTTPException as e:
         # Re-raise HTTP exceptions to be handled by FastAPI
@@ -371,7 +396,7 @@ async def resend_verification_email(
         
     await send_verification_email(user, background_tasks)
     
-    return {"message": "Verification email sent. Please check your inbox."}
+    return success_response(message="Verification email sent. Please check your inbox.")
 
 
 @router.post("/logout", response_model=LogoutResponse, operation_id="logout")
@@ -383,7 +408,7 @@ async def logout_user(
     Note: This is a placeholder as JWT is stateless. Client-side should handle token removal.
     """
     # In a real-world scenario with token blacklisting, you would add the token to a blacklist here.
-    return {"message": f"User {current_user.username} logged out successfully."}
+    return success_response(message=f"User {current_user.username} logged out successfully.")
 
 
 @router.post("/request-password-reset", status_code=status.HTTP_200_OK, operation_id="request_reset_password")
@@ -418,7 +443,7 @@ async def request_password_reset(
         )
         
     # Always return a success message to prevent user enumeration
-    return {"message": "If an account with that email exists, a password reset link has been sent."}
+    return success_response(message="If an account with that email exists, a password reset link has been sent.")
 
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK, operation_id="reset_password")
@@ -453,7 +478,7 @@ async def reset_password(
         db.add(user)
         db.commit()
         
-        return {"message": "Password has been reset successfully."}
+        return success_response(message="Password has been reset successfully.")
         
     except HTTPException as e:
         raise e
@@ -468,7 +493,10 @@ async def get_current_user_profile(
     """
     Get the profile of the currently authenticated user.
     """
-    return UserResponse.from_orm(current_user)
+    return success_response(
+        message="User profile retrieved successfully",
+        data=UserResponse.from_orm(current_user)
+    )
 
 
 @router.put("/me", response_model=UserResponse, operation_id="update_info")
@@ -511,5 +539,8 @@ async def update_current_user_profile(
     db.commit()
     db.refresh(current_user)
     
-    return UserResponse.from_orm(current_user)
+    return success_response(
+        message="User profile updated successfully",
+        data=UserResponse.from_orm(current_user)
+    )
 

@@ -1,1 +1,0 @@
-# Bolt API routes package

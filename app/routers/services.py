@@ -10,6 +10,7 @@ from sqlmodel import Session, select, and_, or_, func
 from app.db.database import get_db
 from app.models.service import Service
 from app.models.user import User
+from app.models.agent import Agent, UserService
 from app.schemas.service import (
     ServiceCreate,
     ServiceUpdate,
@@ -26,6 +27,7 @@ from app.schemas.service import (
 )
 from app.core.security import get_current_user_token, require_admin
 from app.services.external_api_service import external_api_service
+from app.utils import success_response, error_response
 
 router = APIRouter(prefix="/services", tags=["services"])
 
@@ -41,7 +43,7 @@ def get_current_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    return user
+    return success_response(message="User retrieved successfully", data=user)
 
 
 @router.post("/create", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
@@ -104,7 +106,11 @@ async def create_service(
     db.commit()
     db.refresh(new_service)
     
-    return ServiceResponse.from_orm(new_service)
+    return success_response(
+        message="Service created successfully",
+        data=ServiceResponse.from_orm(new_service),
+        status_code=201
+    )
 
 
 @router.put("/{service_id}", response_model=ServiceResponse)
@@ -140,7 +146,10 @@ async def update_service(
     db.commit()
     db.refresh(service)
     
-    return ServiceResponse.from_orm(service)
+    return success_response(
+        message="Service updated successfully",
+        data=ServiceResponse.from_orm(service)
+    )
 
 
 @router.delete("/{service_id}", response_model=ServiceDeleteResponse)
@@ -164,7 +173,10 @@ async def delete_service(
     db.delete(service)
     db.commit()
     
-    return ServiceDeleteResponse(message=f"Service '{service.name}' deleted successfully")
+    return success_response(
+        message=f"Service '{service.name}' deleted successfully",
+        data=ServiceDeleteResponse(message=f"Service '{service.name}' deleted successfully")
+    )
 
 
 @router.get("/", response_model=ServiceList)
@@ -197,13 +209,21 @@ async def list_services(
         
     total_count = db.exec(select(func.count()).select_from(query.alias("subquery"))).one()
     
+    # Calculate active count
+    active_query = select(func.count()).select_from(Service).where(Service.is_active == True)
+    if type:
+        active_query = active_query.where(Service.type == type)
+    active_count = db.exec(active_query).one()
+    
     services = db.exec(query.order_by(Service.name).offset(offset).limit(limit)).all()
     
-    return ServiceList(
-        services=[ServiceResponse.from_orm(s) for s in services],
-        total=total_count,
-        limit=limit,
-        offset=offset
+    return success_response(
+        message="Services retrieved successfully",
+        data=ServiceList(
+            services=[ServiceResponse.from_orm(s) for s in services],
+            total=total_count,
+            active_count=active_count
+        ).dict()
     )
 
 
@@ -224,7 +244,10 @@ async def get_service_details(
             detail="Service not found or is inactive"
         )
         
-    return ServiceDetailResponse.from_orm(service)
+    return success_response(
+        message="Service details retrieved successfully",
+        data=ServiceDetailResponse.from_orm(service)
+    )
 
 
 @router.post("/{service_id}/execute", response_model=ServiceExecuteResponse)
@@ -252,9 +275,12 @@ async def execute_service(
             user_input=request_data.user_input,
             user=current_user
         )
-        return ServiceExecuteResponse(
-            status="success",
-            data=result
+        return success_response(
+            message="Service executed successfully",
+            data=ServiceExecuteResponse(
+                status="success",
+                data=result
+            )
         )
     except HTTPException as e:
         raise e
@@ -287,7 +313,10 @@ async def update_service_status(
     db.commit()
     db.refresh(service)
     
-    return ServiceResponse.from_orm(service)
+    return success_response(
+        message="Service status updated successfully",
+        data=ServiceResponse.from_orm(service)
+    )
 
 
 @router.post("/search", response_model=ServiceList)
@@ -317,11 +346,14 @@ async def search_services(
         .limit(search_query.limit)
     ).all()
     
-    return ServiceList(
-        services=[ServiceResponse.from_orm(s) for s in services],
-        total=total_count,
-        limit=search_query.limit,
-        offset=search_query.offset
+    return success_response(
+        message="Services search completed successfully",
+        data=ServiceList(
+            services=[ServiceResponse.from_orm(s) for s in services],
+            total=total_count,
+            limit=search_query.limit,
+            offset=search_query.offset
+        ).dict()
     )
 
 
@@ -358,9 +390,12 @@ async def test_service_execution(
             user_input=test_request.user_input,
             user=current_user
         )
-        return ServiceExecuteResponse(
-            status="success",
-            data=result
+        return success_response(
+            message="Service test executed successfully",
+            data=ServiceExecuteResponse(
+                status="success",
+                data=result
+            )
         )
     except HTTPException as e:
         raise e
@@ -390,9 +425,12 @@ async def get_service_schema(
         request_schema = external_api_service.get_request_schema(service)
         response_schema = external_api_service.get_response_schema(service)
         
-        return ServiceSchemaResponse(
-            request_schema=request_schema,
-            response_schema=response_schema
+        return success_response(
+            message="Service schema retrieved successfully",
+            data=ServiceSchemaResponse(
+                request_schema=request_schema,
+                response_schema=response_schema
+            )
         )
     except Exception as e:
         raise HTTPException(
@@ -400,660 +438,99 @@ async def get_service_schema(
             detail=f"Could not generate schema: {e}"
         )
 
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
-from sqlmodel import Session, select
-from sqlalchemy import and_, or_, func
 
-from app.db.database import get_db
-from app.models.service import Service
-from app.models.user import User
-from app.schemas.service import (
-    ServiceCreate,
-    ServiceUpdate,
-    ServiceResponse,
-    ServiceDetailResponse,
-    ServiceList,
-    ServiceDeleteResponse,
-    ServiceStatusUpdate,
-    ServiceSearchQuery,
-    ServiceExecuteRequest,
-    ServiceExecuteResponse,
-    ServiceTestRequest,
-    ServiceSchemaResponse
-)
-from app.core.security import get_current_user_token, require_admin
-from app.services.external_api_service import external_api_service
+# User Agent Service Management Endpoints
 
-router = APIRouter(prefix="/services", tags=["services"])
-
-
-def get_current_user(
-    db: Session = Depends(get_db),
-    current_user_token: dict = Depends(get_current_user_token)
-) -> User:
-    """Get current user from database."""
-    user = db.query(User).filter(User.id == int(current_user_token["sub"])).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    return user
-
-
-@router.post("/create", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
-async def create_service(
-    service_data: ServiceCreate,
-    db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
-):
-    """
-    Create a new service with external API configuration (Admin only).
-    
-    Requirements: 4.1 - Admin can create services
-    """
-    # Get current user
-    current_user = db.query(User).filter(User.id == int(current_user_token["sub"])).first()
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    # Verify user can manage services (admin only)
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to create services. Admin access required."
-        )
-    
-    # Check if service with same name and type already exists
-    existing_service = db.query(Service).filter(
-        and_(Service.name == service_data.name, Service.type == service_data.type)
-    ).first()
-    if existing_service:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Service '{service_data.name}' of type '{service_data.type}' already exists"
-        )
-    
-    # Encrypt API key if provided
-    encrypted_api_key = None
-    if service_data.api_key:
-        encrypted_api_key = external_api_service.api_key_manager.encrypt_api_key(service_data.api_key)
-    
-    # Create new service
-    new_service = Service(
-        name=service_data.name,
-        type=service_data.type,
-        description=service_data.description,
-        api_base_url=service_data.api_base_url,
-        api_endpoint=service_data.api_endpoint,
-        http_method=service_data.http_method,
-        request_template=service_data.request_template,
-        response_mapping=service_data.response_mapping,
-        headers_template=service_data.headers_template,
-        encrypted_api_key=encrypted_api_key,
-        api_key_header=service_data.api_key_header,
-        timeout_seconds=service_data.timeout_seconds or 30,
-        retry_attempts=service_data.retry_attempts or 3,
-        created_by=current_user.id,
-        is_active=True
-    )
-    
-    db.add(new_service)
-    db.commit()
-    db.refresh(new_service)
-    
-    return new_service
-
-
-@router.put("/update/{service_id}", response_model=ServiceResponse)
-async def update_service(
+@router.post("/user/agent/services", response_model=dict)
+async def add_service_to_agent(
     service_id: int,
-    service_data: ServiceUpdate,
-    db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
-):
-    """
-    Update an existing service (Admin only).
-    
-    Requirements: 4.2 - Admin can update services
-    """
-    # Get current user
-    current_user = db.query(User).filter(User.id == int(current_user_token["sub"])).first()
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    # Get service
-    service = db.query(Service).filter(Service.id == service_id).first()
-    if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Service not found"
-        )
-    
-    # Verify user can modify this service (admin or creator)
-    if not current_user.is_admin and service.created_by != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to update this service"
-        )
-    
-    # Check if new name/type combination conflicts with existing service
-    if (service_data.name and service_data.name != service.name) or (service_data.type and service_data.type != service.type):
-        check_name = service_data.name or service.name
-        check_type = service_data.type or service.type
-        existing_service = db.query(Service).filter(
-            and_(
-                Service.name == check_name, 
-                Service.type == check_type,
-                Service.id != service_id
-            )
-        ).first()
-        if existing_service:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Service '{check_name}' of type '{check_type}' already exists"
-            )
-    
-    # Update service fields
-    if service_data.name is not None:
-        service.name = service_data.name
-    if service_data.type is not None:
-        service.type = service_data.type
-    if service_data.description is not None:
-        service.description = service_data.description
-    if service_data.api_base_url is not None:
-        service.api_base_url = service_data.api_base_url
-    if service_data.api_endpoint is not None:
-        service.api_endpoint = service_data.api_endpoint
-    if service_data.http_method is not None:
-        service.http_method = service_data.http_method
-    if service_data.request_template is not None:
-        service.request_template = service_data.request_template
-    if service_data.response_mapping is not None:
-        service.response_mapping = service_data.response_mapping
-    if service_data.headers_template is not None:
-        service.headers_template = service_data.headers_template
-    if service_data.api_key is not None:
-        service.encrypted_api_key = external_api_service.api_key_manager.encrypt_api_key(service_data.api_key)
-    if service_data.api_key_header is not None:
-        service.api_key_header = service_data.api_key_header
-    if service_data.timeout_seconds is not None:
-        service.timeout_seconds = service_data.timeout_seconds
-    if service_data.retry_attempts is not None:
-        service.retry_attempts = service_data.retry_attempts
-    if service_data.is_active is not None:
-        service.is_active = service_data.is_active
-    
-    db.commit()
-    db.refresh(service)
-    
-    return service
-
-
-@router.delete("/delete/{service_id}", response_model=ServiceDeleteResponse)
-async def delete_service(
-    service_id: int,
-    db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
-):
-    """
-    Delete a service (Admin only).
-    
-    Requirements: 4.3 - Admin can delete services
-    """
-    # Get current user
-    current_user = db.query(User).filter(User.id == int(current_user_token["sub"])).first()
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    # Get service
-    service = db.query(Service).filter(Service.id == service_id).first()
-    if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Service not found"
-        )
-    
-    # Verify user can delete this service (admin or creator)
-    if not current_user.is_admin and service.created_by != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to delete this service"
-        )
-    
-    # Soft delete by deactivating instead of hard delete
-    service.is_active = False
-    db.commit()
-    
-    return ServiceDeleteResponse(
-        message="Service deleted successfully",
-        deleted_service_id=service_id
-    )
-
-
-@router.patch("/status/{service_id}", response_model=ServiceResponse)
-async def update_service_status(
-    service_id: int,
-    status_data: ServiceStatusUpdate,
-    db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
-):
-    """
-    Update service status (Admin only).
-    
-    Requirements: 4.4 - Admin can manage service status
-    """
-    # Get current user
-    current_user = db.query(User).filter(User.id == int(current_user_token["sub"])).first()
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    # Get service
-    service = db.query(Service).filter(Service.id == service_id).first()
-    if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Service not found"
-        )
-    
-    # Verify user can modify this service (admin or creator)
-    if not current_user.is_admin and service.created_by != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to update service status"
-        )
-    
-    # Update status
-    service.is_active = status_data.is_active
-    db.commit()
-    db.refresh(service)
-    
-    return service
-
-
-@router.get("/list", response_model=ServiceList)
-async def list_services(
-    active_only: bool = Query(True, description="Filter to show only active services"),
-    limit: int = Query(10, ge=1, le=100, description="Maximum number of services to return"),
-    offset: int = Query(0, ge=0, description="Number of services to skip"),
-    search: Optional[str] = Query(None, description="Search query for service name or description"),
-    db: Session = Depends(get_db)
-):
-    """
-    List all services with optional filtering.
-    Public endpoint - no authentication required.
-    
-    Requirements: 5.1 - Users can browse available services
-    """
-    # Build query
-    query = db.query(Service)
-    
-    # Apply filters
-    if active_only:
-        query = query.filter(Service.is_active == True)
-    
-    if search:
-        search_term = f"%{search}%"
-        query = query.filter(
-            or_(
-                Service.name.ilike(search_term),
-                Service.description.ilike(search_term)
-            )
-        )
-    
-    # Get total count before pagination
-    total_count = query.count()
-    active_count = db.query(Service).filter(Service.is_active == True).count()
-    
-    # Apply pagination
-    services = query.order_by(Service.created_at.desc()).offset(offset).limit(limit).all()
-    
-    return ServiceList(
-        services=services,
-        total=total_count,
-        active_count=active_count
-    )
-
-
-@router.get("/{service_id}", response_model=ServiceDetailResponse)
-async def get_service_detail(
-    service_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Get detailed information about a specific service.
-    Public endpoint - no authentication required.
-    
-    Requirements: 5.2 - Users can view service details
-    """
-    # Get service with creator information
-    service = db.query(Service).filter(Service.id == service_id).first()
-    
-    if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Service not found"
-        )
-    
-    # For inactive services, only show to admins
-    if not service.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Service not found"
-        )
-    
-    # Create response with creator username
-    response_data = ServiceDetailResponse.from_orm(service)
-    # Get creator username from the User relationship
-    creator_stmt = select(User).where(User.id == service.created_by)
-    creator = db.exec(creator_stmt).first()
-    response_data.creator_username = creator.username if creator else "Unknown"
-    
-    return response_data
-
-
-@router.get("/search/advanced", response_model=ServiceList)
-async def advanced_service_search(
-    query: Optional[str] = Query(None, description="Search query"),
-    is_active: Optional[bool] = Query(None, description="Filter by active status"),
-    created_by: Optional[int] = Query(None, description="Filter by creator user ID"),
-    limit: int = Query(10, ge=1, le=100, description="Maximum number of results"),
-    offset: int = Query(0, ge=0, description="Number of results to skip"),
-    db: Session = Depends(get_db)
-):
-    """
-    Advanced service search with multiple filters.
-    Public endpoint - no authentication required.
-    
-    Requirements: 5.3 - Advanced service browsing capabilities
-    """
-    # Build query
-    db_query = db.query(Service)
-    
-    # Apply filters
-    if query:
-        search_term = f"%{query}%"
-        db_query = db_query.filter(
-            or_(
-                Service.name.ilike(search_term),
-                Service.description.ilike(search_term)
-            )
-        )
-    
-    if is_active is not None:
-        db_query = db_query.filter(Service.is_active == is_active)
-    
-    if created_by is not None:
-        db_query = db_query.filter(Service.created_by == created_by)
-    
-    # Get total count before pagination
-    total_count = db_query.count()
-    active_count = db.query(Service).filter(Service.is_active == True).count()
-    
-    # Apply pagination and ordering
-    services = db_query.order_by(Service.created_at.desc()).offset(offset).limit(limit).all()
-    
-    return ServiceList(
-        services=services,
-        total=total_count,
-        active_count=active_count
-    )
-
-
-@router.get("/admin/all", response_model=ServiceList)
-async def get_all_services_admin(
-    include_inactive: bool = Query(True, description="Include inactive services"),
-    limit: int = Query(50, ge=1, le=100, description="Maximum number of services to return"),
-    offset: int = Query(0, ge=0, description="Number of services to skip"),
-    db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
-):
-    """
-    Get all services including inactive ones (Admin only).
-    
-    Requirements: 4.4 - Admin can view all services including inactive ones
-    """
-    # Build query
-    query = db.query(Service)
-    
-    # Include inactive services only if requested
-    if not include_inactive:
-        query = query.filter(Service.is_active == True)
-    
-    # Get counts
-    total_count = query.count()
-    active_count = db.query(Service).filter(Service.is_active == True).count()
-    
-    # Apply pagination
-    services = query.order_by(Service.created_at.desc()).offset(offset).limit(limit).all()
-    
-    return ServiceList(
-        services=services,
-        total=total_count,
-        active_count=active_count
-    )
-
-
-@router.get("/stats/summary")
-async def get_service_statistics(
-    db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
-):
-    """
-    Get service statistics (Admin only).
-    
-    Requirements: 4.4 - Admin can view service statistics
-    """
-    # Get various statistics
-    total_services = db.query(Service).count()
-    active_services = db.query(Service).filter(Service.is_active == True).count()
-    inactive_services = total_services - active_services
-    
-    # Get services by creator
-    services_by_creator = db.query(
-        User.username,
-        func.count(Service.id).label('service_count')
-    ).join(Service, User.id == Service.created_by).group_by(User.username).all()
-    
-    # Get recent services (last 30 days)
-    from datetime import datetime, timedelta
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    recent_services = db.query(Service).filter(
-        Service.created_at >= thirty_days_ago
-    ).count()
-    
-    return {
-        "total_services": total_services,
-        "active_services": active_services,
-        "inactive_services": inactive_services,
-        "recent_services_30_days": recent_services,
-        "services_by_creator": [
-            {"creator": creator, "count": count}
-            for creator, count in services_by_creator
-        ]
-    }
-
-
-# ============================================================================
-# SERVICE EXECUTION ENDPOINTS (User-facing service proxy functionality)
-# ============================================================================
-
-@router.get("/available/types")
-async def get_service_types(db: Session = Depends(get_db)):
-    """
-    Get all available service types.
-    Public endpoint - no authentication required.
-    """
-    service_types = db.query(Service.type).filter(Service.is_active == True).distinct().all()
-    return {
-        "service_types": [service_type[0] for service_type in service_types]
-    }
-
-
-@router.get("/available/types/{service_type}")
-async def get_services_by_type(
-    service_type: str = Path(..., description="Service type (e.g., 'ride', 'food')"),
-    db: Session = Depends(get_db)
-):
-    """
-    Get all active services of a specific type.
-    Public endpoint - no authentication required.
-    """
-    services = db.query(Service).filter(
-        and_(Service.type == service_type.lower(), Service.is_active == True)
-    ).all()
-    
-    if not services:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No active services found for type '{service_type}'"
-        )
-    
-    return {
-        "service_type": service_type,
-        "services": [
-            {
-                "id": service.id,
-                "name": service.name,
-                "description": service.description
-            }
-            for service in services
-        ]
-    }
-
-
-@router.get("/available/{service_type}/{service_name}/schema", response_model=ServiceSchemaResponse)
-async def get_service_schema(
-    service_type: str = Path(..., description="Service type"),
-    service_name: str = Path(..., description="Service name"),
-    db: Session = Depends(get_db)
-):
-    """
-    Get the parameter schema for a specific service.
-    Shows what parameters are required to call the service.
-    """
-    service_stmt = select(Service).where(
-        and_(
-            Service.type == service_type.lower(),
-            Service.name.ilike(f"%{service_name}%"),
-            Service.is_active == True
-        )
-    )
-    service = db.exec(service_stmt).first()
-    
-    if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Service '{service_name}' of type '{service_type}' not found"
-        )
-    
-    schema = external_api_service.get_service_schema(service)
-    return ServiceSchemaResponse(**schema)
-
-
-@router.post("/available/{service_type}/{service_name}/execute", response_model=ServiceExecuteResponse)
-async def execute_service(
-    request_data: ServiceExecuteRequest,
-    service_type: str = Path(..., description="Service type"),
-    service_name: str = Path(..., description="Service name"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Execute a service call to an external API.
-    Requires user authentication.
+    Add a service to the user's agent (plug-and-play).
     """
-    # Find the service
-    service_stmt = select(Service).where(
-        and_(
-            Service.type == service_type.lower(),
-            Service.name.ilike(f"%{service_name}%"),
-            Service.is_active == True
-        )
-    )
-    service = db.exec(service_stmt).first()
-    
+    # Check if service exists
+    service = db.exec(select(Service).where(Service.id == service_id)).first()
     if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Service '{service_name}' of type '{service_type}' not found"
-        )
-    
-    # Validate parameters
-    is_valid, error_message = external_api_service.validate_service_parameters(
-        service, request_data.parameters
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    # Check if already added
+    existing = db.exec(select(UserService).where(
+        and_(UserService.user_id == current_user.id, UserService.service_id == service_id)
+    )).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Service already added to agent")
+
+    # Get or create agent for user
+    agent = db.exec(select(Agent).where(Agent.user_id == current_user.id)).first()
+    if not agent:
+        agent = Agent(user_id=current_user.id)
+        db.add(agent)
+        db.commit()
+        db.refresh(agent)
+
+    # Add service to user_services
+    user_service = UserService(
+        user_id=current_user.id,
+        service_id=service_id,
+        agent_id=agent.id
     )
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_message
-        )
-    
-    # Execute the service call
-    success, response_data, status_code, execution_time = await external_api_service.execute_service_call(
-        service, request_data.parameters
-    )
-    
-    return ServiceExecuteResponse(
-        success=success,
-        data=response_data if success else None,
-        error=response_data if not success else None,
-        status_code=status_code,
-        execution_time_ms=execution_time
+    db.add(user_service)
+    db.commit()
+
+    return success_response(
+        message="Service added to agent successfully",
+        data={"agent_id": agent.id}
     )
 
 
-@router.post("/admin/{service_id}/test", response_model=ServiceExecuteResponse)
-async def test_service_configuration(
+@router.delete("/user/agent/services/{service_id}", response_model=dict)
+async def remove_service_from_agent(
     service_id: int,
-    test_request: ServiceTestRequest,
     db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Test a service configuration with sample parameters (Admin only).
-    Useful for validating service setup before making it active.
+    Remove a service from the user's agent.
     """
-    # Get service
-    service = db.query(Service).filter(Service.id == service_id).first()
-    if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Service not found"
-        )
-    
-    # Validate parameters
-    is_valid, error_message = external_api_service.validate_service_parameters(
-        service, test_request.test_parameters
-    )
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Test parameters invalid: {error_message}"
-        )
-    
-    # Execute test call
-    success, response_data, status_code, execution_time = await external_api_service.execute_service_call(
-        service, test_request.test_parameters
-    )
-    
-    return ServiceExecuteResponse(
-        success=success,
-        data=response_data if success else None,
-        error=response_data if not success else None,
-        status_code=status_code,
-        execution_time_ms=execution_time
+    user_service = db.exec(select(UserService).where(
+        and_(UserService.user_id == current_user.id, UserService.service_id == service_id)
+    )).first()
+    if not user_service:
+        raise HTTPException(status_code=404, detail="Service not found in agent")
+
+    db.delete(user_service)
+    db.commit()
+
+    return success_response(message="Service removed from agent successfully")
+
+
+@router.get("/user/agent/services", response_model=dict)
+async def get_user_agent_services(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get all services added to the user's agent.
+    """
+    user_services = db.exec(select(UserService).where(
+        and_(UserService.user_id == current_user.id, UserService.is_active == True)
+    )).all()
+
+    services = []
+    for us in user_services:
+        service = db.exec(select(Service).where(Service.id == us.service_id)).first()
+        if service:
+            services.append({
+                "id": service.id,
+                "name": service.name,
+                "type": service.type,
+                "description": service.description,
+                "added_at": us.added_at
+            })
+
+    return success_response(
+        message="User agent services retrieved successfully",
+        data={"services": services}
     )

@@ -59,7 +59,12 @@ class Settings(BaseSettings):
     email_from: Optional[str] = None
     
     # CORS settings
-    cors_origins: list = ["http://localhost:3000", "http://localhost:8080"]
+    cors_origins: list = [
+        "http://localhost:3000", 
+        "http://localhost:8080",
+        "https://echo-mcp-server.qkiu.tech",
+        "http://echo-mcp-server.qkiu.tech"
+    ]
     cors_allow_credentials: bool = True
     cors_allow_methods: list = ["*"]
     cors_allow_headers: list = ["*"]
@@ -70,15 +75,6 @@ class Settings(BaseSettings):
     
     # Admin settings
     admin_secret_key: str = "change-this-admin-secret-in-production"
-    
-    # Bolt API settings
-    bolt_food_api_url: str = "https://node.bolt.eu/delivery-provider-pos"
-    bolt_food_integrator_id: str = ""
-    bolt_food_secret_key: str = ""
-    bolt_stores_api_url: str = "https://node.bolt.eu/delivery-provider-pos"
-    bolt_stores_integrator_id: str = ""
-    bolt_stores_secret_key: str = ""
-    bolt_region_id: int = 0
     
     @field_validator("jwt_secret_key")
     @classmethod

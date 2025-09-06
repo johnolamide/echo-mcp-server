@@ -8,6 +8,7 @@ from sqlmodel import Field, Relationship, SQLModel, Index
 if TYPE_CHECKING:
     from app.models.chat import ChatMessage
     from app.models.service import Service
+    from app.models.agent import Agent, UserService
 
 
 class UserBase(SQLModel):
@@ -41,6 +42,8 @@ class User(UserBase, table=True):
         sa_relationship_kwargs={"foreign_keys": "ChatMessage.receiver_id"}
     )
     created_services: List["Service"] = Relationship(back_populates="creator")
+    agents: List["Agent"] = Relationship(back_populates="user")
+    user_services: List["UserService"] = Relationship(back_populates="user")
     
     class Config:
         table_args = (

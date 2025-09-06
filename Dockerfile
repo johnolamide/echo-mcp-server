@@ -33,7 +33,7 @@ USER app
 WORKDIR /app
 
 # Copy application code
-COPY --chown=app:app app/ ./app/
+COPY --chown=app:app . .
 
 # Expose port
 EXPOSE 8000

@@ -1,263 +1,45 @@
 version: 0.2
 
+env:
+  variables:
+    IMAGE_REPO_NAME: "echo-mcp-server"
+    IMAGE_TAG: "latest"
+
 phases:
-  pre_build:
+  install:
+    runtime-versions:
+      python: 3.11
     commands:
-      - echo "Starting build process for Echo MCP Server..."
-      - echo "Current date: $(date)"
-      - echo "Build initiated by: $CODEBUILD_INITIATOR"
-      
-      # Authenticate with ECR
-      - echo "Logging in to Amazon ECR..."
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-      
-      # Authenticate with Docker Hub (optional but recommended)
-      - |
-        if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_PASSWORD" ]; then
-          echo "Logging in to Docker Hub..."
-          echo $DOCKERHUB_PASSWORD | docker login --username $DOCKERHUB_USERNAME --password-stdin
-        else
-          echo "Docker Hub credentials not provided - using unauthenticated access"
-        fi
-      
-      # Install Python dependencies for testing
-      - echo "Installing Python dependencies..."
+      - echo "Installing dependencies..."
       - pip install --upgrade pip
       - pip install -r requirements.txt
-      
-      # Set image tag based on git commit or build number
-      - |
-        if [ "$CODEBUILD_RESOLVED_SOURCE_VERSION" != "" ]; then
-          IMAGE_TAG=$CODEBUILD_RESOLVED_SOURCE_VERSION
-        elif [ "$CODEBUILD_BUILD_NUMBER" != "" ]; then
-          IMAGE_TAG=build-$CODEBUILD_BUILD_NUMBER
-        else
-          IMAGE_TAG=latest
-        fi
-      - echo "Using image tag: $IMAGE_TAG"
-      
-      # Validate environment variables
-      - |
-        echo "Validating environment variables..."
-        if [ -z "$IMAGE_REPO_NAME" ]; then
-          echo "ERROR: IMAGE_REPO_NAME environment variable is not set"
-          exit 1
-        fi
-        if [ -z "$AWS_ACCOUNT_ID" ]; then
-          echo "ERROR: AWS_ACCOUNT_ID environment variable is not set"
-          exit 1
-        fi
-        echo "Environment validation passed"
+
+  pre_build:
+    commands:
+      - echo "Running pre-build steps..."
+      - python -m pytest tests/ -v --tb=short
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
 
   build:
     commands:
       - echo "Building Docker image..."
-      - echo "Docker build context: $(pwd)"
-      - echo "Dockerfile location: ./Dockerfile"
-      
-      # Build the Docker image
-      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
-      - docker build -t $IMAGE_REPO_NAME:latest .
-      
-      # Tag for ECR
-      - ECR_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
-      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $ECR_URI:$IMAGE_TAG
-      - docker tag $IMAGE_REPO_NAME:latest $ECR_URI:latest
-      
-      # List images for verification
-      - echo "Built images:"
-      - docker images | grep $IMAGE_REPO_NAME
+      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG -f Dockerfile .
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
 
   post_build:
     commands:
       - echo "Pushing Docker image to ECR..."
-      - ECR_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
-      
-      # Push images to ECR
-      - docker push $ECR_URI:$IMAGE_TAG
-      - docker push $ECR_URI:latest
-      
-      # Verify push was successful
-      - echo "Verifying ECR push..."
-      - aws ecr describe-images --repository-name $IMAGE_REPO_NAME --image-ids imageTag=$IMAGE_TAG
-      
-      # Create imagedefinitions.json for ECS deployment
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
       - echo "Creating imagedefinitions.json..."
-      - |
-        cat > imagedefinitions.json << EOF
-        [
-          {
-            "name": "echo-mcp-app",
-            "imageUri": "$ECR_URI:$IMAGE_TAG"
-          }
-        ]
-        EOF
-      
-      # Create task definition template
-      - echo "Creating task definition template..."
-      - |
-        cat > taskdef.json << EOF
-        {
-          "family": "echo-mcp-task",
-          "cpu": "256",
-          "memory": "512",
-          "networkMode": "awsvpc",
-          "requiresCompatibilities": ["FARGATE"],
-          "executionRoleArn": "arn:aws:iam::$AWS_ACCOUNT_ID:role/echo-mcp-task-execution-role",
-          "containerDefinitions": [
-            {
-              "name": "echo-mcp-app",
-              "image": "$ECR_URI:$IMAGE_TAG",
-              "essential": true,
-              "portMappings": [
-                {
-                  "containerPort": 8000,
-                  "protocol": "tcp"
-                }
-              ],
-              "environment": [
-                {
-                  "name": "ENVIRONMENT",
-                  "value": "production"
-                },
-                {
-                  "name": "TIDB_HOST",
-                  "value": "\${TIDB_HOST}"
-                },
-                {
-                  "name": "TIDB_PORT",
-                  "value": "4000"
-                },
-                {
-                  "name": "TIDB_USER",
-                  "value": "root"
-                },
-                {
-                  "name": "TIDB_PASSWORD",
-                  "value": ""
-                },
-                {
-                  "name": "TIDB_DATABASE",
-                  "value": "echo_mcp_tidb"
-                },
-                {
-                  "name": "REDIS_HOST",
-                  "value": "\${REDIS_HOST}"
-                },
-                {
-                  "name": "REDIS_PORT",
-                  "value": "6379"
-                },
-                {
-                  "name": "REDIS_PASSWORD",
-                  "value": ""
-                },
-                {
-                  "name": "REDIS_DB",
-                  "value": "0"
-                },
-                {
-                  "name": "CORS_ORIGINS",
-                  "value": "[\"https://yourdomain.com\"]"
-                },
-                {
-                  "name": "JWT_SECRET_KEY",
-                  "value": "\${JWT_SECRET_KEY}"
-                },
-                {
-                  "name": "JWT_ALGORITHM",
-                  "value": "HS256"
-                },
-                {
-                  "name": "JWT_ACCESS_TOKEN_EXPIRE_MINUTES",
-                  "value": "30"
-                },
-                {
-                  "name": "JWT_REFRESH_TOKEN_EXPIRE_DAYS",
-                  "value": "7"
-                },
-                {
-                  "name": "DEBUG",
-                  "value": "false"
-                },
-                {
-                  "name": "APP_NAME",
-                  "value": "Echo MCP Server"
-                },
-                {
-                  "name": "APP_VERSION",
-                  "value": "1.0.0"
-                },
-                {
-                  "name": "PORT",
-                  "value": "8000"
-                }
-              ],
-              "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                  "awslogs-group": "/ecs/echo-mcp",
-                  "awslogs-region": "$AWS_DEFAULT_REGION",
-                  "awslogs-stream-prefix": "ecs"
-                }
-              },
-              "healthCheck": {
-                "command": [
-                  "CMD-SHELL",
-                  "curl -f http://localhost:8000/health || exit 1"
-                ],
-                "interval": 30,
-                "timeout": 5,
-                "retries": 3,
-                "startPeriod": 60
-              }
-            }
-          ]
-        }
-        EOF
-      
-      # Create appspec.yaml for CodeDeploy (optional)
-      - |
-        cat > appspec.yaml << EOF
-        version: 0.0
-        Resources:
-          - TargetService:
-              Type: AWS::ECS::Service
-              Properties:
-                TaskDefinition: <TASK_DEFINITION>
-                LoadBalancerInfo:
-                  ContainerName: "echo-mcp-app"
-                  ContainerPort: 8000
-        EOF
-      
-      # Validate JSON files
-      - echo "Validating JSON files..."
-      - python -m json.tool imagedefinitions.json > /dev/null
-      - python -m json.tool taskdef.json > /dev/null
-      
-      # Print build summary
-      - echo "Build completed successfully!"
-      - echo "Image URI: $ECR_URI:$IMAGE_TAG"
-      - echo "Artifacts created: imagedefinitions.json, taskdef.json, appspec.yaml"
+      - printf '[{"name":"echo-mcp-server","imageUri":"%s"}]' $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG > imagedefinitions.json
 
 artifacts:
   files:
     - imagedefinitions.json
     - taskdef.json
-    - appspec.yaml
-  discard-paths: no
-  name: echo-mcp-build-artifacts
+    - appspec.yml
 
 cache:
   paths:
     - '/root/.cache/pip'
-    - '/var/cache/apt'
-    - '/tmp'
-    - '~/.docker'
-
-reports:
-  pytest_reports:
-    files:
-      - 'test-results.xml'
-    file-format: JUNITXML
-    base-directory: 'test-reports'

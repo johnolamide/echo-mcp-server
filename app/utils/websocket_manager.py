@@ -108,11 +108,10 @@ class ConnectionManager:
         # Send to receiver
         await self.send_message_to_user(message, receiver_id)
         
-        # Send confirmation to sender (if different from receiver)
-        if sender_id != receiver_id:
-            sender_message = message.copy()
-            sender_message["type"] = "message_sent"
-            await self.send_message_to_user(sender_message, sender_id)
+        # Send confirmation to sender
+        sender_message = message.copy()
+        sender_message["type"] = "message_sent"
+        await self.send_message_to_user(sender_message, sender_id)
     
     async def handle_typing_indicator(self, user_id: int, target_user_id: int, is_typing: bool):
         """Handle typing indicator updates."""

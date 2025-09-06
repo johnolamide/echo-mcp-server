@@ -33,7 +33,7 @@ class MessageResponse(BaseModel):
     sender_id: int = Field(..., description="ID of the message sender")
     receiver_id: int = Field(..., description="ID of the message receiver")
     content: str = Field(..., description="Message content")
-    timestamp: datetime = Field(..., description="Message timestamp")
+    timestamp: str = Field(..., description="Message timestamp")
     is_read: bool = Field(..., description="Whether message has been read")
     sender_username: Optional[str] = Field(None, description="Username of the sender")
     receiver_username: Optional[str] = Field(None, description="Username of the receiver")

@@ -15,6 +15,7 @@ from app.models.service import Service
 from app.schemas.admin import UserListResponse, UserDetailResponse, UserStatsResponse
 from app.schemas.auth import UserResponse
 from app.core.security import require_admin
+from app.utils import success_response, error_response
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -69,12 +70,15 @@ async def get_all_users(
     # Apply pagination and ordering
     users = db.exec(query.order_by(User.created_at.desc()).offset(offset).limit(limit)).all()
     
-    return UserListResponse(
-        users=users,
-        total=total_count,
-        active_count=active_count,
-        verified_count=verified_count,
-        admin_count=admin_count
+    return success_response(
+        message="Users retrieved successfully",
+        data=UserListResponse(
+            users=users,
+            total=total_count,
+            active_count=active_count,
+            verified_count=verified_count,
+            admin_count=admin_count
+        ).dict()
     )
 
 
@@ -123,7 +127,10 @@ async def get_user_details(
         last_login=last_login
     )
     
-    return user_detail
+    return success_response(
+        message="User details retrieved successfully",
+        data=user_detail
+    )
 
 
 @router.get("/users/stats/summary", response_model=UserStatsResponse, operation_id="get_user_statistics_summary")
@@ -148,12 +155,15 @@ async def get_user_statistics(
         select(func.count(User.id)).where(User.created_at >= thirty_days_ago)
     ).one()
     
-    return UserStatsResponse(
-        total_users=total_users,
-        active_users=active_users,
-        verified_users=verified_users,
-        admin_users=admin_users,
-        recent_registrations=recent_registrations
+    return success_response(
+        message="User statistics retrieved successfully",
+        data=UserStatsResponse(
+            total_users=total_users,
+            active_users=active_users,
+            verified_users=verified_users,
+            admin_users=admin_users,
+            recent_registrations=recent_registrations
+        ).dict()
     )
 
 
@@ -215,12 +225,15 @@ async def advanced_user_search(
     # Apply pagination and ordering
     users = db.exec(db_query.order_by(User.created_at.desc()).offset(offset).limit(limit)).all()
     
-    return UserListResponse(
-        users=users,
-        total=total_count,
-        active_count=active_count,
-        verified_count=verified_count,
-        admin_count=admin_count
+    return success_response(
+        message="Advanced user search completed successfully",
+        data=UserListResponse(
+            users=users,
+            total=total_count,
+            active_count=active_count,
+            verified_count=verified_count,
+            admin_count=admin_count
+        ).dict()
     )
 
 
@@ -277,32 +290,35 @@ async def get_user_activity(
         Service.created_by == user_id
     ).order_by(Service.created_at.desc())).all()
     
-    return {
-        "user_id": user_id,
-        "username": user.username,
-        "period_days": days,
-        "activity_summary": {
-            "messages_sent": messages_sent_period,
-            "messages_received": messages_received_period,
-            "services_created": services_created_period
-        },
-        "recent_messages": [
-            {
-                "id": msg.id,
-                "receiver_id": msg.receiver_id,
-                "content": msg.content[:100] + "..." if len(msg.content) > 100 else msg.content,
-                "timestamp": msg.timestamp
-            }
-            for msg in recent_messages
-        ],
-        "created_services": [
-            {
-                "id": service.id,
-                "name": service.name,
-                "description": service.description,
-                "is_active": service.is_active,
-                "created_at": service.created_at
-            }
-            for service in created_services
-        ]
-    }
+    return success_response(
+        message="User activity report generated successfully",
+        data={
+            "user_id": user_id,
+            "username": user.username,
+            "period_days": days,
+            "activity_summary": {
+                "messages_sent": messages_sent_period,
+                "messages_received": messages_received_period,
+                "services_created": services_created_period
+            },
+            "recent_messages": [
+                {
+                    "id": msg.id,
+                    "receiver_id": msg.receiver_id,
+                    "content": msg.content[:100] + "..." if len(msg.content) > 100 else msg.content,
+                    "timestamp": msg.timestamp
+                }
+                for msg in recent_messages
+            ],
+            "created_services": [
+                {
+                    "id": service.id,
+                    "name": service.name,
+                    "description": service.description,
+                    "is_active": service.is_active,
+                    "created_at": service.created_at
+                }
+                for service in created_services
+            ]
+        }
+    )

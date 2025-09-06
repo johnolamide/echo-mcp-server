@@ -2,11 +2,12 @@
 Service model for managing platform services with external API integration using SQLModel.
 """
 from datetime import datetime
-from typing import Optional, Dict, Any, TYPE_CHECKING
+from typing import Optional, Dict, Any, TYPE_CHECKING, List
 from sqlmodel import Field, Relationship, SQLModel, Index, JSON, Column
 
 if TYPE_CHECKING:
     from app.models.user import User
+    from app.models.agent import UserService
 
 
 class ServiceBase(SQLModel):
@@ -39,8 +40,9 @@ class Service(ServiceBase, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
     updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
     
-    # Relationship
+        # Relationship
     creator: "User" = Relationship(back_populates="created_services")
+    user_services: List["UserService"] = Relationship(back_populates="service")
     
     class Config:
         table_args = (

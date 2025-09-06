@@ -23,7 +23,7 @@ from app.db.database import (
 )
 from app.db.redis_client import init_redis, close_redis, redis_manager
 from app.routers import auth, chat, services, admin
-from app.api.routes.bolt import food, stores, webhooks, demo
+from app.utils import success_response, error_response
 
 # Configure logging
 logging.basicConfig(
@@ -147,14 +147,12 @@ if not settings.debug:
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle HTTP exceptions with consistent error format."""
-    return JSONResponse(
+    return error_response(
+        message=exc.detail,
         status_code=exc.status_code,
-        content={
-            "error": {
-                "code": f"HTTP_{exc.status_code}",
-                "message": exc.detail,
-                "path": str(request.url.path)
-            }
+        data={
+            "code": f"HTTP_{exc.status_code}",
+            "path": str(request.url.path)
         }
     )
 
@@ -185,15 +183,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "type": error["type"]
         })
     
-    return JSONResponse(
+    return error_response(
+        message="Request validation failed",
         status_code=422,
-        content={
-            "error": {
-                "code": "VALIDATION_ERROR",
-                "message": "Request validation failed",
-                "details": errors,
-                "path": str(request.url.path)
-            }
+        data={
+            "code": "VALIDATION_ERROR",
+            "details": errors,
+            "path": str(request.url.path)
         }
     )
 
@@ -205,27 +201,23 @@ async def general_exception_handler(request: Request, exc: Exception):
     
     if settings.debug:
         # In debug mode, return detailed error information
-        return JSONResponse(
+        return error_response(
+            message=str(exc),
             status_code=500,
-            content={
-                "error": {
-                    "code": "INTERNAL_SERVER_ERROR",
-                    "message": str(exc),
-                    "type": type(exc).__name__,
-                    "path": str(request.url.path)
-                }
+            data={
+                "code": "INTERNAL_SERVER_ERROR",
+                "type": type(exc).__name__,
+                "path": str(request.url.path)
             }
         )
     else:
         # In production, return generic error message
-        return JSONResponse(
+        return error_response(
+            message="An unexpected error occurred",
             status_code=500,
-            content={
-                "error": {
-                    "code": "INTERNAL_SERVER_ERROR",
-                    "message": "An unexpected error occurred",
-                    "path": str(request.url.path)
-                }
+            data={
+                "code": "INTERNAL_SERVER_ERROR",
+                "path": str(request.url.path)
             }
         )
 
@@ -289,25 +281,33 @@ async def health_check() -> Dict[str, Any]:
         health_status["status"] = "unhealthy"
         health_status["error"] = str(e)
     
-    return health_status
+    # Use the health status as the overall response status
+    overall_status = health_status["status"]
+    return success_response(
+        message=f"Health check completed - {overall_status}",
+        data=health_status
+    )
 
 
 # Root endpoint
 @app.get("/", tags=["Root"])
-async def root() -> Dict[str, str]:
+async def root():
     """
     Root endpoint with application information.
     
     Returns:
-        dict: Basic application information
+        JSONResponse: Basic application information
     """
-    return {
-        "name": settings.app_name,
-        "version": settings.app_version,
-        "description": "Echo MCP Server - REST API with authentication, chat, and service management",
-        "docs_url": "/docs" if settings.debug else "Documentation disabled in production",
-        "health_url": "/health"
-    }
+    return success_response(
+        message="Echo MCP Server API",
+        data={
+            "name": settings.app_name,
+            "version": settings.app_version,
+            "description": "Echo MCP Server - REST API with authentication, chat, and service management",
+            "docs_url": "/docs" if settings.debug else "Documentation disabled in production",
+            "health_url": "/health"
+        }
+    )
 
 
 # Register routers (routers already have their own prefixes defined)
@@ -321,39 +321,14 @@ app.include_router(
     tags=["Chat"]
 )
 
-# app.include_router(
-#     services.router,
-#     tags=["Services"]
-# )
+app.include_router(
+    services.router,
+    tags=["Services"]
+)
 
 app.include_router(
     admin.router,
     tags=["Admin"]
-)
-
-# Register Bolt API routes
-app.include_router(
-    food.router,
-    prefix="/api",
-    tags=["Bolt Food"]
-)
-
-app.include_router(
-    stores.router,
-    prefix="/api",
-    tags=["Bolt Stores"]
-)
-
-app.include_router(
-    webhooks.router,
-    prefix="/api",
-    tags=["Bolt Webhooks"]
-)
-
-app.include_router(
-    demo.router,
-    prefix="/api",
-    tags=["Bolt Demo & Testing"]
 )
 
 

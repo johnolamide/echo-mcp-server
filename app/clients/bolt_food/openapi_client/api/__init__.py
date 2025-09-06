@@ -1,9 +1,0 @@
-# flake8: noqa
-
-# import apis into api package
-from openapi_client.api.dine_in_order_integration_by_waiter_api import DineInOrderIntegrationByWaiterApi
-from openapi_client.api.menu_integration_api import MenuIntegrationApi
-from openapi_client.api.order_integration_api import OrderIntegrationApi
-from openapi_client.api.pim_integration_option_and_option_groups_api import PIMIntegrationOptionAndOptionGroupsApi
-from openapi_client.api.provider_integration_api import ProviderIntegrationApi
-

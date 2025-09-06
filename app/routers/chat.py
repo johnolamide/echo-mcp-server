@@ -18,6 +18,7 @@ from app.schemas.chat import (
 from app.routers.auth import get_current_user
 from app.utils.websocket_manager import connection_manager, chat_handler
 from app.utils.jwt_handler import verify_token
+from app.utils import success_response, error_response
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -37,12 +38,12 @@ async def send_message(
     
     Returns the created message with sender and receiver information.
     """
-    # Validate that user is not sending message to themselves
-    if message_data.receiver_id == current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot send message to yourself"
-        )
+    # Allow sending messages to yourself for testing purposes
+    # if message_data.receiver_id == current_user.id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail="Cannot send message to yourself"
+    #     )
     
     # Check if receiver exists and is active
     receiver = db.exec(select(User).where(
@@ -74,15 +75,18 @@ async def send_message(
         sender = db.get(User, new_message.sender_id)
         receiver = db.get(User, new_message.receiver_id)
 
-        return MessageResponse(
-            id=new_message.id,
-            sender_id=new_message.sender_id,
-            receiver_id=new_message.receiver_id,
-            content=new_message.content,
-            timestamp=new_message.timestamp,
-            is_read=new_message.is_read,
-            sender_username=sender.username if sender else "Unknown",
-            receiver_username=receiver.username if receiver else "Unknown"
+        return success_response(
+            message="Message sent successfully",
+            data=MessageResponse(
+                id=new_message.id,
+                sender_id=new_message.sender_id,
+                receiver_id=new_message.receiver_id,
+                content=new_message.content,
+                timestamp=new_message.timestamp.isoformat(),
+                is_read=new_message.is_read,
+                sender_username=sender.username if sender else "Unknown",
+                receiver_username=receiver.username if receiver else "Unknown"
+            ).dict()
         )
         
     except Exception as e:
@@ -164,12 +168,15 @@ async def get_chat_history(
     )
     unread_count = db.exec(unread_count_query).one()
     
-    return ChatHistory(
-        messages=formatted_messages,
-        total_messages=total_count,
-        unread_count=unread_count,
-        other_user_id=other_user_id,
-        other_username=other_user.username
+    return success_response(
+        message="Chat history retrieved successfully",
+        data=ChatHistory(
+            messages=formatted_messages,
+            total_messages=total_count,
+            unread_count=unread_count,
+            other_user_id=other_user_id,
+            other_username=other_user.username
+        )
     )
 
 
@@ -193,9 +200,12 @@ async def mark_messages_as_read(
     messages_to_update = db.exec(statement).all()
 
     if not messages_to_update:
-        return MessageMarkReadResponse(
-            message="No unread messages from this user.",
-            marked_count=0
+        return success_response(
+            message="No unread messages from this user",
+            data=MessageMarkReadResponse(
+                message="No unread messages from this user.",
+                marked_count=0
+            ).dict()
         )
         
     updated_count = 0
@@ -206,9 +216,12 @@ async def mark_messages_as_read(
         
     db.commit()
     
-    return MessageMarkReadResponse(
-        message=f"Successfully marked {updated_count} messages as read.",
-        marked_count=updated_count
+    return success_response(
+        message=f"Successfully marked {updated_count} messages as read",
+        data=MessageMarkReadResponse(
+            message=f"Successfully marked {updated_count} messages as read.",
+            marked_count=updated_count
+        ).dict()
     )
 
 
@@ -283,10 +296,13 @@ async def get_user_conversations(
     
     conversations_list = list(conversations_dict.values())
     
-    return ConversationList(
-        conversations=conversations_list,
-        total_conversations=len(conversations_list),
-        total_unread=total_unread
+    return success_response(
+        message="Conversations retrieved successfully",
+        data=ConversationList(
+            conversations=conversations_list,
+            total_conversations=len(conversations_list),
+            total_unread=total_unread
+        ).dict()
     )
 
 
@@ -299,7 +315,10 @@ async def get_user_online_status(
     Check if a user is currently online (connected via WebSocket).
     """
     is_online = await connection_manager.is_user_online(user_id)
-    return UserStatusResponse(user_id=user_id, is_online=is_online)
+    return success_response(
+        message="User online status retrieved successfully",
+        data=UserStatusResponse(user_id=user_id, is_online=is_online).dict()
+    )
 
 
 @router.get("/online-users", response_model=OnlineStatusResponse, operation_id="get_all_online_users")
@@ -310,10 +329,13 @@ async def get_all_online_users(
     Get a list of all currently online users.
     """
     online_user_ids = await connection_manager.get_online_users()
-    return OnlineStatusResponse(
-        online_users=online_user_ids,
-        total_online=len(online_user_ids),
-        requesting_user=current_user.id
+    return success_response(
+        message="Online users retrieved successfully",
+        data=OnlineStatusResponse(
+            online_users=online_user_ids,
+            total_online=len(online_user_ids),
+            requesting_user=current_user.id
+        ).dict()
     )
 
 
@@ -354,10 +376,13 @@ async def get_chat_users(
             is_online=is_online
         ))
     
-    return UsersListResponse(
-        users=users_list,
-        total_users=len(users_list),
-        online_count=online_count
+    return success_response(
+        message="Chat users retrieved successfully",
+        data=UsersListResponse(
+            users=users_list,
+            total_users=len(users_list),
+            online_count=online_count
+        ).dict()
     )
 
 
