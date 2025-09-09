@@ -100,7 +100,15 @@ def create_database_if_not_exists():
     """
     try:
         # Connect to the MySQL server without specifying a database
-        server_url = f"mysql+mysqlconnector://{settings.tidb_user}:{settings.tidb_password}@{settings.tidb_host}:{settings.tidb_port}"
+        if settings.database_url_env:
+            # Parse the DATABASE_URL to get server connection (without database)
+            from urllib.parse import urlparse
+            parsed = urlparse(settings.database_url_env)
+            server_url = f"mysql+mysqlconnector://{parsed.username}:{parsed.password}@{parsed.hostname}:{parsed.port or 4000}"
+        else:
+            # Fallback to individual settings
+            server_url = f"mysql+mysqlconnector://{settings.tidb_user}:{settings.tidb_password}@{settings.tidb_host}:{settings.tidb_port}"
+        
         temp_engine = create_engine(server_url, echo=settings.debug)
         
         with temp_engine.connect() as connection:
@@ -123,7 +131,14 @@ def create_db_and_tables():
     try:
         # Step 1: Create the database if it does not exist.
         # This requires connecting to the MySQL server without a specific database.
-        server_url = f"mysql+mysqlconnector://{settings.tidb_user}:{settings.tidb_password}@{settings.tidb_host}:{settings.tidb_port}"
+        if settings.database_url_env:
+            # Parse the DATABASE_URL to get server connection (without database)
+            from urllib.parse import urlparse
+            parsed = urlparse(settings.database_url_env)
+            server_url = f"mysql+mysqlconnector://{parsed.username}:{parsed.password}@{parsed.hostname}:{parsed.port or 4000}"
+        else:
+            # Fallback to individual settings
+            server_url = f"mysql+mysqlconnector://{settings.tidb_user}:{settings.tidb_password}@{settings.tidb_host}:{settings.tidb_port}"
         
         # Use a temporary engine with autocommit enabled for the CREATE DATABASE command.
         # This command cannot be run inside a transaction.
