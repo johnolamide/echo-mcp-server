@@ -3,7 +3,7 @@ Core configuration module with environment-based settings.
 """
 import os
 from typing import Optional
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     port: int = 8000
     
     # Database settings
-    database_url_env: Optional[str] = os.getenv("DATABASE_URL")  # Direct DATABASE_URL override
+    database_url_env: Optional[str] = Field(default=None, alias="DATABASE_URL")  # Direct DATABASE_URL override
     tidb_host: str = "localhost"
     tidb_port: int = 4000
     tidb_user: str = "root"
@@ -94,7 +94,8 @@ class Settings(BaseSettings):
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
-        "case_sensitive": False
+        "case_sensitive": False,
+        "extra": "ignore"
     }
 
 

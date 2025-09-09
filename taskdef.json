@@ -21,8 +21,8 @@
       "environment": [
         {"name": "ENVIRONMENT", "value": "production"},
         {"name": "DEBUG", "value": "false"},
-        {"name": "DATABASE_URL", "value": "mysql://user:password@tidb-endpoint:4000/echo_mcp"},
-        {"name": "REDIS_URL", "value": "redis://redis-endpoint:6379"},
+        {"name": "DATABASE_URL", "value": "mysql://H4gZqYNHotbvC1j.root:DO92V0EWOxYwXkIU@gateway01.us-east-1.prod.aws.tidbcloud.com:4000/test"},
+        {"name": "REDIS_URL", "value": "redis://echo_redis:6379"},
         {"name": "JWT_SECRET_KEY", "value": "your-jwt-secret-key"},
         {"name": "ADMIN_SECRET_KEY", "value": "your-admin-secret-key"}
       ],

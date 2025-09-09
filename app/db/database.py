@@ -13,51 +13,78 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# SQLModel engine with connection pooling and optimizations
-try:
-    engine = create_engine(
-        settings.database_url,
-        poolclass=QueuePool,
-        pool_size=settings.db_pool_size,
-        max_overflow=settings.db_max_overflow,
-        pool_pre_ping=True,  # Validate connections before use
-        pool_recycle=3600,   # Recycle connections every hour
-        echo=settings.debug,  # Log SQL queries in debug mode
-    )
-except ImportError:
-    logger.critical("mysql-connector-python is not installed. Please install it with: pip install mysql-connector-python")
-    raise
+"""
+Database connection and session management for the application.
+Handles connection to TiDB or other MySQL-compatible databases using SQLModel.
+"""
+import logging
+from typing import Generator
+from sqlmodel import create_engine, Session, SQLModel, text
+from sqlalchemy.pool import QueuePool
+from sqlalchemy.exc import DisconnectionError, OperationalError
+from sqlalchemy import event
 
+from app.core.config import settings
 
-@event.listens_for(engine, "connect")
-def set_database_session_variables(dbapi_connection, connection_record):
-    """Set database-specific session variables for optimal performance."""
-    try:
-        with dbapi_connection.cursor() as cursor:
-            cursor.execute("SELECT VERSION()")
-            version_string = cursor.fetchone()[0].lower()
+logger = logging.getLogger(__name__)
+
+# Global engine variable - will be initialized lazily
+_engine = None
+
+def get_engine():
+    """Get or create the SQLAlchemy engine with proper settings."""
+    global _engine
+    if _engine is None:
+        try:
+            _engine = create_engine(
+                settings.database_url,
+                poolclass=QueuePool,
+                pool_size=settings.db_pool_size,
+                max_overflow=settings.db_max_overflow,
+                pool_pre_ping=True,  # Validate connections before use
+                pool_recycle=3600,   # Recycle connections every hour
+                echo=settings.debug,  # Log SQL queries in debug mode
+            )
+            logger.info(f"Database engine created successfully with URL: {settings.database_url}")
             
-            if 'tidb' in version_string:
-                logger.info("Connected to TiDB. Applying TiDB-specific session variables.")
-                cursor.execute("SET SESSION tidb_enable_vectorized_expression = ON")
-                cursor.execute("SET SESSION tidb_hash_join_concurrency = 4")
-            elif 'mysql' in version_string:
-                logger.info("Connected to MySQL. Applying MySQL-specific session variables.")
-                cursor.execute("SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO'")
-            else:
-                logger.info(f"Connected to an unknown MySQL-compatible database: {version_string}")
-        
-    except Exception as e:
-        logger.warning(f"Failed to set database session variables: {e}")
+            # Register event listeners after engine creation
+            @event.listens_for(_engine, "connect")
+            def set_database_session_variables(dbapi_connection, connection_record):
+                """Set database-specific session variables for optimal performance."""
+                try:
+                    with dbapi_connection.cursor() as cursor:
+                        cursor.execute("SELECT VERSION()")
+                        version_string = cursor.fetchone()[0].lower()
+                        
+                        if 'tidb' in version_string:
+                            logger.info("Connected to TiDB. Applying TiDB-specific session variables.")
+                            cursor.execute("SET SESSION tidb_enable_vectorized_expression = ON")
+                            cursor.execute("SET SESSION tidb_hash_join_concurrency = 4")
+                        elif 'mysql' in version_string:
+                            logger.info("Connected to MySQL. Applying MySQL-specific session variables.")
+                            cursor.execute("SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO'")
+                        else:
+                            logger.info(f"Connected to an unknown MySQL-compatible database: {version_string}")
+                
+                except Exception as e:
+                    logger.warning(f"Failed to set database session variables: {e}")
+            
+        except ImportError:
+            logger.critical("mysql-connector-python is not installed. Please install it with: pip install mysql-connector-python")
+            raise
+    return _engine
 
-
+# Property to maintain backward compatibility
+@property
+def engine():
+    return get_engine()
 
 def get_db() -> Generator[Session, None, None]:
     """
     FastAPI dependency to get a database session using SQLModel.
     Ensures the session is properly closed and rolled back on error.
     """
-    with Session(engine) as session:
+    with Session(get_engine()) as session:
         try:
             yield session
         except Exception as e:
