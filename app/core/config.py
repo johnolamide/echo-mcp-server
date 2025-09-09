@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     port: int = 8000
     
     # Database settings
+    database_url_env: Optional[str] = os.getenv("DATABASE_URL")  # Direct DATABASE_URL override
     tidb_host: str = "localhost"
     tidb_port: int = 4000
     tidb_user: str = "root"
@@ -30,6 +31,11 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         """Construct TiDB/MySQL connection URL using mysql-connector-python."""
+        # If DATABASE_URL is provided, use it directly
+        if self.database_url_env:
+            return self.database_url_env
+            
+        # Otherwise construct from individual components
         password_part = f":{self.tidb_password}" if self.tidb_password else ""
         return f"mysql+mysqlconnector://{self.tidb_user}{password_part}@{self.tidb_host}:{self.tidb_port}/{self.tidb_database}?charset=utf8mb4"
     
