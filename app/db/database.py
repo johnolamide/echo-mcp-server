@@ -105,20 +105,23 @@ def create_database_if_not_exists():
             from urllib.parse import urlparse
             parsed = urlparse(settings.database_url_env)
             server_url = f"mysql+mysqlconnector://{parsed.username}:{parsed.password}@{parsed.hostname}:{parsed.port or 4000}"
+            # Extract database name from URL path
+            db_name = parsed.path.lstrip('/') if parsed.path else 'test'
         else:
             # Fallback to individual settings
             server_url = f"mysql+mysqlconnector://{settings.tidb_user}:{settings.tidb_password}@{settings.tidb_host}:{settings.tidb_port}"
+            db_name = settings.tidb_database
         
         temp_engine = create_engine(server_url, echo=settings.debug)
         
         with temp_engine.connect() as connection:
-            connection.execute(text(f"CREATE DATABASE IF NOT EXISTS `{settings.tidb_database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+            connection.execute(text(f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
             connection.commit()
         
         temp_engine.dispose()
-        logger.info(f"Database '{settings.tidb_database}' created or already exists.")
+        logger.info(f"Database '{db_name}' created or already exists.")
     except Exception as e:
-        logger.error(f"Failed to create database '{settings.tidb_database}': {e}")
+        logger.error(f"Failed to create database '{db_name}': {e}")
         raise
 
 
@@ -136,17 +139,20 @@ def create_db_and_tables():
             from urllib.parse import urlparse
             parsed = urlparse(settings.database_url_env)
             server_url = f"mysql+mysqlconnector://{parsed.username}:{parsed.password}@{parsed.hostname}:{parsed.port or 4000}"
+            # Extract database name from URL path
+            db_name = parsed.path.lstrip('/') if parsed.path else 'test'
         else:
             # Fallback to individual settings
             server_url = f"mysql+mysqlconnector://{settings.tidb_user}:{settings.tidb_password}@{settings.tidb_host}:{settings.tidb_port}"
+            db_name = settings.tidb_database
         
         # Use a temporary engine with autocommit enabled for the CREATE DATABASE command.
         # This command cannot be run inside a transaction.
         temp_engine = create_engine(server_url, connect_args={"autocommit": True})
         
         with temp_engine.connect() as connection:
-            connection.execute(text(f"CREATE DATABASE IF NOT EXISTS `{settings.tidb_database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
-            logger.info(f"Database '{settings.tidb_database}' created or already exists.")
+            connection.execute(text(f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+            logger.info(f"Database '{db_name}' created or already exists.")
         
         # Dispose of the temporary engine to close its connections.
         temp_engine.dispose()
@@ -163,7 +169,7 @@ def create_db_and_tables():
         
         # The `engine.begin()` context manager provides a connection and a transaction.
         # `create_all` will use this transaction to execute all DDL statements.
-        with engine.begin() as conn:
+        with get_engine().begin() as conn:
             SQLModel.metadata.create_all(conn)
             
         logger.info("Database tables created successfully with SQLModel.")
@@ -182,7 +188,7 @@ def check_database_connection() -> bool:
         bool: True if connection is successful, False otherwise.
     """
     try:
-        with engine.connect() as connection:
+        with get_engine().connect() as connection:
             connection.scalar(text("SELECT 1"))
         logger.info("Database connection check successful.")
         return True
