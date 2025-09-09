@@ -210,7 +210,7 @@ class DatabaseManager:
     def close_all_connections(self):
         """Close all database connections."""
         try:
-            self.engine.dispose()
+            get_engine().dispose()
             logger.info("All database connections closed.")
         except Exception as e:
             logger.error(f"Error closing database connections: {e}")
@@ -226,7 +226,7 @@ class DatabaseManager:
         try:
             if check_database_connection():
                 status["database"] = "healthy"
-                pool = self.engine.pool
+                pool = get_engine().pool
                 status["details"] = {
                     "pool_size": pool.size(),
                     "checked_in_connections": pool.checkedin(),
@@ -241,4 +241,4 @@ class DatabaseManager:
         return status
 
 # Global database manager instance
-db_manager = DatabaseManager(engine)
+db_manager = DatabaseManager(get_engine())
