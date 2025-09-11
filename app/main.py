@@ -141,12 +141,10 @@ if not settings.debug:
         allowed_hosts=[
             "api.echo-mcp-server.qkiu.tech",
             "echo-mcp-server.qkiu.tech",
+            "echo-mcp.qkiu.tech",
+            "agent.echo-mcp.qkiu.tech",
             "localhost",
-            "127.0.0.1",
-            "https://echo-mcp.qkiu.tech",
-            "http://echo-mcp.qkiu.tech",
-            "http://agent.echo-mcp.qkiu.tech",
-            "https://agent.echo-mcp.qkiu.tech"
+            "127.0.0.1"
         ]
     )
 
@@ -345,7 +343,7 @@ app.include_router(
     tags=["Admin"]
 )
 
-
+# MCP integration (setup after routers)
 mcp.setup_server()
 
 if __name__ == "__main__":
