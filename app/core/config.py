@@ -69,7 +69,11 @@ class Settings(BaseSettings):
         "http://localhost:3000", 
         "http://localhost:8080",
         "https://echo-mcp-server.qkiu.tech",
-        "http://echo-mcp-server.qkiu.tech"
+        "http://echo-mcp-server.qkiu.tech",
+        "https://agent.echo-mcp.qkiu.tech",
+        "http://agent.echo-mcp.qkiu.tech",
+        "https://echo-mcp.qkiu.tech",
+        "http://echo-mcp.qkiu.tech"
     ]
     cors_allow_credentials: bool = True
     cors_allow_methods: list = ["*"]
