@@ -121,11 +121,7 @@ mcp = FastApiMCP(
     # ]
 )
 
-# MCP integration
-mcp.mount_http()
-
-
-# Add CORS middleware
+# Add CORS middleware FIRST (before other middleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -134,12 +130,24 @@ app.add_middleware(
     allow_headers=settings.cors_allow_headers,
 )
 
+# MCP integration (mount after CORS)
+mcp.mount_http()
 
-# Add trusted host middleware for security
+
+# Add trusted host middleware for security (only in production)
 if not settings.debug:
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["*"]
+        allowed_hosts=[
+            "api.echo-mcp-server.qkiu.tech",
+            "echo-mcp-server.qkiu.tech",
+            "localhost",
+            "127.0.0.1",
+            "https://echo-mcp.qkiu.tech",
+            "http://echo-mcp.qkiu.tech",
+            "http://agent.echo-mcp.qkiu.tech",
+            "https://agent.echo-mcp.qkiu.tech"
+        ]
     )
 
 
@@ -220,6 +228,12 @@ async def general_exception_handler(request: Request, exc: Exception):
                 "path": str(request.url.path)
             }
         )
+
+
+@app.options("/{path:path}")
+async def handle_options(path: str):
+    """Handle OPTIONS requests for CORS preflight."""
+    return {"message": "OK"}
 
 
 # Middleware for request logging
