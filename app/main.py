@@ -138,14 +138,7 @@ mcp.mount_http()
 if not settings.debug:
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=[
-            "api.echo-mcp-server.qkiu.tech",
-            "echo-mcp-server.qkiu.tech",
-            "echo-mcp.qkiu.tech",
-            "agent.echo-mcp.qkiu.tech",
-            "localhost",
-            "127.0.0.1"
-        ]
+        allowed_hosts=["*"]
     )
 
 

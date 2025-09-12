@@ -64,21 +64,11 @@ class Settings(BaseSettings):
     smtp_password: Optional[str] = None
     email_from: Optional[str] = None
     
-    # CORS settings
-    cors_origins: list = [
-        "http://localhost:3000",
-        "http://localhost:8080",
-        "http://localhost:5173",              # Development UI
-        "https://localhost:5173",             # Development UI (HTTPS)
-        "https://echo-mcp-server.qkiu.tech",  # Server domain
-        "http://echo-mcp-server.qkiu.tech",   # Server domain
-        "https://agent.echo-mcp.qkiu.tech",   # Client domain
-        "http://agent.echo-mcp.qkiu.tech",    # Client domain
-        "https://echo-mcp.qkiu.tech",         # Production UI
-        "http://echo-mcp.qkiu.tech",          # Production UI (HTTP)
-        "https://echo-mcp-ui.qkiu.tech",      # Alternative UI domain
-        "http://echo-mcp-ui.qkiu.tech"        # Alternative UI domain
-    ]
+    # CORS settings - Temporarily disabled for testing
+    cors_origins: list = ["*"]
+    cors_allow_credentials: bool = True
+    cors_allow_methods: list = ["*"]
+    cors_allow_headers: list = ["*"]
     cors_allow_credentials: bool = True
     cors_allow_methods: list = ["*"]
     cors_allow_headers: list = ["*"]
