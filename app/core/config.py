@@ -16,8 +16,11 @@ class Settings(BaseSettings):
     debug: bool = False
     port: int = 8000
     
-    # Database settings
+    # Database settings - Using SQLite for hackathon demo
     database_url_env: Optional[str] = Field(default=None, alias="DATABASE_URL")  # Direct DATABASE_URL override
+    sqlite_database: str = "echo_mcp_demo.db"  # SQLite database file for demo
+    
+    # Legacy TiDB settings (kept for compatibility)
     tidb_host: str = "localhost"
     tidb_port: int = 4000
     tidb_user: str = "root"
@@ -30,14 +33,17 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
-        """Construct TiDB/MySQL connection URL using mysql-connector-python."""
+        """Construct database connection URL - using SQLite for demo."""
         # If DATABASE_URL is provided, use it directly
         if self.database_url_env:
             return self.database_url_env
             
-        # Otherwise construct from individual components
-        password_part = f":{self.tidb_password}" if self.tidb_password else ""
-        return f"mysql+mysqlconnector://{self.tidb_user}{password_part}@{self.tidb_host}:{self.tidb_port}/{self.tidb_database}?charset=utf8mb4"
+        # For hackathon demo, use SQLite instead of TiDB/MySQL
+        return f"sqlite:///{self.sqlite_database}"
+        
+        # Legacy TiDB/MySQL URL construction (commented out for demo)
+        # password_part = f":{self.tidb_password}" if self.tidb_password else ""
+        # return f"mysql+mysqlconnector://{self.tidb_user}{password_part}@{self.tidb_host}:{self.tidb_port}/{self.tidb_database}?charset=utf8mb4"
     
     # Redis settings
     redis_host: str = "localhost"

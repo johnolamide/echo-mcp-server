@@ -13,8 +13,8 @@ class UserListResponse(BaseModel):
     users: List[UserResponse] = Field(..., description="List of users")
     total: int = Field(..., description="Total number of users")
     active_count: int = Field(..., description="Number of active users")
-    verified_count: int = Field(..., description="Number of verified users")
-    admin_count: int = Field(..., description="Number of admin users")
+    verified_count: int = Field(..., description="Number of verified users (always 0 in demo)")
+    admin_count: int = Field(..., description="Number of admin users (always 0 in demo)")
     
     class Config:
         json_schema_extra = {
@@ -23,18 +23,15 @@ class UserListResponse(BaseModel):
                     {
                         "id": 1,
                         "username": "johndoe",
-                        "email": "john.doe@example.com",
                         "is_active": True,
-                        "is_verified": True,
-                        "is_admin": False,
                         "created_at": "2023-01-01T00:00:00Z",
                         "updated_at": "2023-01-01T00:00:00Z"
                     }
                 ],
                 "total": 10,
                 "active_count": 8,
-                "verified_count": 7,
-                "admin_count": 2
+                "verified_count": 0,
+                "admin_count": 0
             }
         }
 
@@ -43,10 +40,7 @@ class UserDetailResponse(BaseModel):
     """Schema for detailed user information response."""
     id: int = Field(..., description="User ID")
     username: str = Field(..., description="Username")
-    email: EmailStr = Field(..., description="Email address")
     is_active: bool = Field(..., description="Whether user account is active")
-    is_verified: bool = Field(..., description="Whether user email is verified")
-    is_admin: bool = Field(..., description="Whether user has admin privileges")
     created_at: datetime = Field(..., description="Account creation timestamp")
     updated_at: datetime = Field(..., description="Last account update timestamp")
     
@@ -62,10 +56,7 @@ class UserDetailResponse(BaseModel):
             "example": {
                 "id": 1,
                 "username": "johndoe",
-                "email": "john.doe@example.com",
                 "is_active": True,
-                "is_verified": True,
-                "is_admin": False,
                 "created_at": "2023-01-01T00:00:00Z",
                 "updated_at": "2023-01-01T00:00:00Z",
                 "total_messages_sent": 25,
@@ -80,8 +71,8 @@ class UserStatsResponse(BaseModel):
     """Schema for user statistics response."""
     total_users: int = Field(..., description="Total number of users")
     active_users: int = Field(..., description="Number of active users")
-    verified_users: int = Field(..., description="Number of verified users")
-    admin_users: int = Field(..., description="Number of admin users")
+    verified_users: int = Field(..., description="Number of verified users (always 0 in demo)")
+    admin_users: int = Field(..., description="Number of admin users (always 0 in demo)")
     recent_registrations: int = Field(..., description="Number of recent registrations (last 30 days)")
     
     class Config:

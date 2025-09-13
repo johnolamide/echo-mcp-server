@@ -52,14 +52,21 @@ async def lifespan(app: FastAPI):
             create_db_and_tables()
             logger.info("Database and tables created successfully.")
             
-            # Initialize Redis
+            # Initialize Redis (optional for demo)
             logger.info("Initializing Redis connection...")
-            await init_redis()
-            
-            # Verify Redis connection
-            redis_health = await redis_manager.health_check()
-            if redis_health.get("redis") != "healthy":
-                raise Exception(f"Redis connection unhealthy: {redis_health}")
+            try:
+                await init_redis()
+                
+                # Verify Redis connection
+                redis_health = await redis_manager.health_check()
+                if redis_health.get("redis") == "healthy":
+                    logger.info("Redis connection established successfully")
+                else:
+                    logger.warning(f"Redis connection unhealthy: {redis_health}")
+                    logger.warning("Continuing without Redis for demo purposes")
+            except Exception as redis_error:
+                logger.warning(f"Redis initialization failed: {redis_error}")
+                logger.warning("Continuing without Redis for demo purposes")
             
             logger.info("Application startup completed successfully")
             break  # Exit loop on success
@@ -272,14 +279,19 @@ async def health_check() -> Dict[str, Any]:
         db_health = db_manager.health_check()
         health_status["components"]["database"] = db_health
         
-        # Check Redis health
-        redis_health = await redis_manager.health_check()
-        health_status["components"]["redis"] = redis_health
+        # Check Redis health (optional for demo)
+        try:
+            redis_health = await redis_manager.health_check()
+            health_status["components"]["redis"] = redis_health
+            redis_healthy = redis_health.get("redis") == "healthy"
+        except Exception as redis_error:
+            health_status["components"]["redis"] = {"redis": "unavailable", "error": str(redis_error)}
+            redis_healthy = False
         
-        # Determine overall health
-        if (db_health.get("database") != "healthy" or 
-            redis_health.get("redis") != "healthy"):
+        # Determine overall health - Redis is optional for demo
+        if db_health.get("database") != "healthy":
             health_status["status"] = "unhealthy"
+        # Redis failure doesn't make the app unhealthy for demo purposes
         
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -316,10 +328,11 @@ async def root():
 
 
 # Register routers (routers already have their own prefixes defined)
-app.include_router(
-    auth.router,
-    tags=["Authentication"]
-)
+# Authentication router removed for hackathon demo
+# app.include_router(
+#     auth.router,
+#     tags=["Authentication"]
+# )
 
 app.include_router(
     chat.router,

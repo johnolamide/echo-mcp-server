@@ -14,26 +14,36 @@ from app.models.chat import ChatMessage
 from app.models.service import Service
 from app.schemas.admin import UserListResponse, UserDetailResponse, UserStatsResponse
 from app.schemas.auth import UserResponse
-from app.core.security import require_admin
+# Authentication removed for hackathon demo
+# from app.core.security import require_admin
 from app.utils import success_response, error_response
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+# Mock user for hackathon demo (no authentication required)
+def get_mock_admin_user() -> User:
+    """Return a mock admin user for demo purposes."""
+    return User(
+        id=1,
+        username="admin",
+        is_active=True
+    )
+
+
 @router.get("/users", response_model=UserListResponse, operation_id="get_all_users")
 async def get_all_users(
     active_only: bool = Query(False, description="Filter to show only active users"),
-    verified_only: bool = Query(False, description="Filter to show only verified users"),
-    admin_only: bool = Query(False, description="Filter to show only admin users"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of users to return"),
     offset: int = Query(0, ge=0, description="Number of users to skip"),
-    search: Optional[str] = Query(None, description="Search query for username or email"),
+    search: Optional[str] = Query(None, description="Search query for username"),
     db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
+    # Authentication removed for hackathon demo
+    # current_user_token: dict = Depends(require_admin)
+    current_user: User = Depends(get_mock_admin_user)
 ):
     """
-    Get all users with admin role validation.
-    
+    Get all users with optional filtering and pagination.
     Requirements: 6.1 - Admin can request all users and get list with basic information
     """
     # Build query
@@ -43,20 +53,9 @@ async def get_all_users(
     if active_only:
         query = query.where(User.is_active == True)
     
-    if verified_only:
-        query = query.where(User.is_verified == True)
-    
-    if admin_only:
-        query = query.where(User.is_admin == True)
-    
     if search:
         search_term = f"%{search}%"
-        query = query.where(
-            or_(
-                User.username.ilike(search_term),
-                User.email.ilike(search_term)
-            )
-        )
+        query = query.where(User.username.ilike(search_term))
     
     # Get total count before pagination
     total_count_statement = select(func.count()).select_from(query.alias("subquery"))
@@ -64,8 +63,6 @@ async def get_all_users(
     
     # Get various counts for statistics
     active_count = db.exec(select(func.count(User.id)).where(User.is_active == True)).one()
-    verified_count = db.exec(select(func.count(User.id)).where(User.is_verified == True)).one()
-    admin_count = db.exec(select(func.count(User.id)).where(User.is_admin == True)).one()
     
     # Apply pagination and ordering
     users = db.exec(query.order_by(User.created_at.desc()).offset(offset).limit(limit)).all()
@@ -76,8 +73,8 @@ async def get_all_users(
             users=users,
             total=total_count,
             active_count=active_count,
-            verified_count=verified_count,
-            admin_count=admin_count
+            verified_count=0,  # Not applicable in demo
+            admin_count=0  # Not applicable in demo
         ).dict()
     )
 
@@ -86,7 +83,9 @@ async def get_all_users(
 async def get_user_details(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
+    # Authentication removed for hackathon demo
+    # current_user_token: dict = Depends(require_admin)
+    current_user: User = Depends(get_mock_admin_user)
 ):
     """
     Get detailed information for a specific user with comprehensive information.
@@ -115,10 +114,9 @@ async def get_user_details(
     user_detail = UserDetailResponse(
         id=user.id,
         username=user.username,
-        email=user.email,
         is_active=user.is_active,
-        is_verified=user.is_verified,
-        is_admin=user.is_admin,
+        is_verified=False,  # Not applicable in demo
+        is_admin=False,  # Not applicable in demo
         created_at=user.created_at,
         updated_at=user.updated_at,
         total_messages_sent=total_messages_sent,
@@ -136,7 +134,9 @@ async def get_user_details(
 @router.get("/users/stats/summary", response_model=UserStatsResponse, operation_id="get_user_statistics_summary")
 async def get_user_statistics(
     db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
+    # Authentication removed for hackathon demo
+    # current_user_token: dict = Depends(require_admin)
+    current_user: User = Depends(get_mock_admin_user)
 ):
     """
     Get user statistics summary (Admin only).
@@ -146,8 +146,6 @@ async def get_user_statistics(
     # Get various user statistics
     total_users = db.exec(select(func.count(User.id))).one()
     active_users = db.exec(select(func.count(User.id)).where(User.is_active == True)).one()
-    verified_users = db.exec(select(func.count(User.id)).where(User.is_verified == True)).one()
-    admin_users = db.exec(select(func.count(User.id)).where(User.is_admin == True)).one()
     
     # Get recent registrations (last 30 days)
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
@@ -160,8 +158,8 @@ async def get_user_statistics(
         data=UserStatsResponse(
             total_users=total_users,
             active_users=active_users,
-            verified_users=verified_users,
-            admin_users=admin_users,
+            verified_users=0,  # Not applicable in demo
+            admin_users=0,  # Not applicable in demo
             recent_registrations=recent_registrations
         ).dict()
     )
@@ -169,16 +167,16 @@ async def get_user_statistics(
 
 @router.get("/users/search/advanced", response_model=UserListResponse, operation_id="advanced_user_search")
 async def advanced_user_search(
-    query: Optional[str] = Query(None, description="Search query for username or email"),
+    query: Optional[str] = Query(None, description="Search query for username"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
-    is_verified: Optional[bool] = Query(None, description="Filter by verified status"),
-    is_admin: Optional[bool] = Query(None, description="Filter by admin status"),
     created_after: Optional[datetime] = Query(None, description="Filter users created after this date"),
     created_before: Optional[datetime] = Query(None, description="Filter users created before this date"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
+    # Authentication removed for hackathon demo
+    # current_user_token: dict = Depends(require_admin)
+    current_user: User = Depends(get_mock_admin_user)
 ):
     """
     Advanced user search with multiple filters (Admin only).
@@ -191,21 +189,10 @@ async def advanced_user_search(
     # Apply filters
     if query:
         search_term = f"%{query}%"
-        db_query = db_query.where(
-            or_(
-                User.username.ilike(search_term),
-                User.email.ilike(search_term)
-            )
-        )
+        db_query = db_query.where(User.username.ilike(search_term))
     
     if is_active is not None:
         db_query = db_query.where(User.is_active == is_active)
-    
-    if is_verified is not None:
-        db_query = db_query.where(User.is_verified == is_verified)
-    
-    if is_admin is not None:
-        db_query = db_query.where(User.is_admin == is_admin)
     
     if created_after:
         db_query = db_query.where(User.created_at >= created_after)
@@ -219,8 +206,6 @@ async def advanced_user_search(
     
     # Get various counts for statistics
     active_count = db.exec(select(func.count(User.id)).where(User.is_active == True)).one()
-    verified_count = db.exec(select(func.count(User.id)).where(User.is_verified == True)).one()
-    admin_count = db.exec(select(func.count(User.id)).where(User.is_admin == True)).one()
     
     # Apply pagination and ordering
     users = db.exec(db_query.order_by(User.created_at.desc()).offset(offset).limit(limit)).all()
@@ -231,8 +216,8 @@ async def advanced_user_search(
             users=users,
             total=total_count,
             active_count=active_count,
-            verified_count=verified_count,
-            admin_count=admin_count
+            verified_count=0,  # Not applicable in demo
+            admin_count=0  # Not applicable in demo
         ).dict()
     )
 
@@ -242,7 +227,9 @@ async def get_user_activity(
     user_id: int,
     days: int = Query(30, ge=1, le=365, description="Number of days to look back for activity"),
     db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
+    # Authentication removed for hackathon demo
+    # current_user_token: dict = Depends(require_admin)
+    current_user: User = Depends(get_mock_admin_user)
 ):
     """
     Get detailed user activity information (Admin only).

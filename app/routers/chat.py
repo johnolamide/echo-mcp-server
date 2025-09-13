@@ -15,19 +15,35 @@ from app.schemas.chat import (
     MessageMarkReadBySender, MessageMarkReadResponse, ConversationList, OnlineStatusResponse,
     UserStatusResponse, UserBasicInfo, UsersListResponse
 )
-from app.routers.auth import get_current_user
+# Authentication removed for hackathon demo
+# from app.routers.auth import get_current_user
 from app.utils.websocket_manager import connection_manager, chat_handler
-from app.utils.jwt_handler import verify_token
+# from app.utils.jwt_handler import verify_token
 from app.utils import success_response, error_response
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 logger = logging.getLogger(__name__)
 
 
+# Mock user for hackathon demo (no authentication required)
+def get_mock_user() -> User:
+    """Return a mock user for demo purposes."""
+    return User(
+        id=1,
+        email="demo@example.com",
+        first_name="Demo",
+        last_name="User",
+        is_active=True,
+        is_admin=False
+    )
+
+
 @router.post("/send", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, operation_id="send_message")
 async def send_message(
     message_data: MessageSend,
-    current_user: User = Depends(get_current_user),
+    # Authentication removed for hackathon demo
+    # current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_mock_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -98,25 +114,27 @@ async def send_message(
         )
 
 
-@router.get("/history/{other_user_id}", response_model=ChatHistory, operation_id="get_chat_history")
+@router.get("/history/{user_id}", response_model=ChatHistory, operation_id="get_chat_history")
 async def get_chat_history(
-    other_user_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    limit: int = Query(50, ge=1, le=100, description="Number of messages to retrieve"),
-    offset: int = Query(0, ge=0, description="Number of messages to skip")
+    user_id: int,
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(50, ge=1, le=100, description="Messages per page"),
+    # Authentication removed for hackathon demo
+    # current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_mock_user),
+    db: Session = Depends(get_db)
 ):
     """
     Get chat history with another user.
     
-    - **other_user_id**: ID of the other user in the conversation
+    - **user_id**: ID of the other user in the conversation
     - **limit**: Max number of messages to return
     - **offset**: Number of messages to skip for pagination
     
     Returns paginated chat history.
     """
     # Check if the other user exists
-    other_user = db.get(User, other_user_id)
+    other_user = db.get(User, user_id)
     if not other_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -183,7 +201,9 @@ async def get_chat_history(
 @router.post("/mark-read", response_model=MessageMarkReadResponse, operation_id="mark_messages_as_read")
 async def mark_messages_as_read(
     read_data: MessageMarkReadBySender,
-    current_user: User = Depends(get_current_user),
+    # Authentication removed for hackathon demo
+    # current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_mock_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -227,7 +247,9 @@ async def mark_messages_as_read(
 
 @router.get("/conversations", response_model=ConversationList, operation_id="get_user_conversations")
 async def get_user_conversations(
-    current_user: User = Depends(get_current_user),
+    # Authentication removed for hackathon demo
+    # current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_mock_user),
     db: Session = Depends(get_db),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of conversations to return")
 ):
@@ -309,7 +331,9 @@ async def get_user_conversations(
 @router.get("/status/{user_id}", response_model=UserStatusResponse, operation_id="get_user_online_status")
 async def get_user_online_status(
     user_id: int,
-    current_user: User = Depends(get_current_user)
+    # Authentication removed for hackathon demo
+    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_mock_user)
 ):
     """
     Check if a user is currently online (connected via WebSocket).
@@ -323,7 +347,9 @@ async def get_user_online_status(
 
 @router.get("/online-users", response_model=OnlineStatusResponse, operation_id="get_all_online_users")
 async def get_all_online_users(
-    current_user: User = Depends(get_current_user)
+    # Authentication removed for hackathon demo
+    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_mock_user)
 ):
     """
     Get a list of all currently online users.
@@ -341,7 +367,9 @@ async def get_all_online_users(
 
 @router.get("/users", response_model=UsersListResponse, operation_id="get_chat_users")
 async def get_chat_users(
-    current_user: User = Depends(get_current_user),
+    # Authentication removed for hackathon demo
+    # current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_mock_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -386,35 +414,23 @@ async def get_chat_users(
     )
 
 
-@router.websocket("/ws/{token}")
+@router.websocket("/ws/{client_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
-    token: str,
+    client_id: str,
     db: Session = Depends(get_db)
 ):
     """
     WebSocket endpoint for real-time chat.
     
-    - Authenticates user via JWT token in the URL.
+    - No authentication required for hackathon demo
     - Handles incoming and outgoing messages.
     - Manages user online status.
     """
     try:
-        payload = verify_token(token)
-        if not payload:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-
-        user_id = payload.get("sub")
-        if not user_id:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-
-        user = db.get(User, user_id)
-        if not user or not user.is_active:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-
+        # For hackathon demo, use mock user
+        user = get_mock_user()
+        
     except Exception:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return

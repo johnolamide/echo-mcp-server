@@ -84,17 +84,13 @@ class AdminUserResponse(BaseModel):
     message: str = Field(..., description="Success message")
     user_id: str = Field(..., description="Created admin user ID")
     username: str = Field(..., description="Admin username")
-    email: EmailStr = Field(..., description="Admin email")
-    is_admin: bool = Field(..., description="Admin status (always true)")
     
     class Config:
         json_schema_extra = {
             "example": {
                 "message": "Admin user created successfully",
                 "user_id": "1",
-                "username": "admin",
-                "email": "admin@example.com",
-                "is_admin": True
+                "username": "admin"
             }
         }
 
@@ -117,10 +113,7 @@ class UserResponse(BaseModel):
     """Schema for user response data."""
     id: int = Field(..., description="User ID")
     username: str = Field(..., description="Username")
-    email: EmailStr = Field(..., description="Email address")
     is_active: bool = Field(..., description="Whether user account is active")
-    is_verified: bool = Field(..., description="Whether user email is verified")
-    is_admin: bool = Field(..., description="Whether user has admin privileges")
     created_at: datetime = Field(..., description="Account creation timestamp")
     updated_at: datetime = Field(..., description="Last account update timestamp")
     
@@ -130,10 +123,7 @@ class UserResponse(BaseModel):
             "example": {
                 "id": 1,
                 "username": "johndoe",
-                "email": "john.doe@example.com",
                 "is_active": True,
-                "is_verified": True,
-                "is_admin": False,
                 "created_at": "2023-01-01T00:00:00Z",
                 "updated_at": "2023-01-01T00:00:00Z"
             }

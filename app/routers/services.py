@@ -25,52 +25,63 @@ from app.schemas.service import (
     ServiceTestRequest,
     ServiceSchemaResponse
 )
-from app.core.security import get_current_user_token, require_admin
+# Authentication removed for hackathon demo
+# from app.core.security import get_current_user_token, require_admin
 from app.services.external_api_service import external_api_service
 from app.utils import success_response, error_response
 
 router = APIRouter(prefix="/services", tags=["services"])
 
 
-def get_current_user(
-    db: Session = Depends(get_db),
-    current_user_token: dict = Depends(get_current_user_token)
-) -> User:
-    """Get current user from database."""
-    user = db.exec(select(User).where(User.id == int(current_user_token["sub"]))).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    return success_response(message="User retrieved successfully", data=user)
+# Mock user for hackathon demo (no authentication required)
+def get_mock_user() -> User:
+    """Return a mock user for demo purposes."""
+    return User(
+        id=1,
+        username="demo",
+        is_active=True
+    )
+
+
+# Authentication removed for hackathon demo
+# def get_current_user(
+#     db: Session = Depends(get_db),
+#     current_user_token: dict = Depends(get_current_user_token)
+# ) -> User:
+#     """Get current user from database."""
+#     user = db.exec(select(User).where(User.id == int(current_user_token["sub"]))).first()
+#     if not user:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="User not found"
+#         )
+#     return success_response(message="User retrieved successfully", data=user)
 
 
 @router.post("/create", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
 async def create_service(
     service_data: ServiceCreate,
     db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
+    # Authentication removed for hackathon demo
+    # current_user_token: dict = Depends(require_admin)
+    current_user: User = Depends(get_mock_user)
 ):
     """
     Create a new service with external API configuration (Admin only).
     
     Requirements: 4.1 - Admin can create services
     """
+    # Authentication removed for hackathon demo - using mock user
     # Get current user
-    current_user = db.exec(select(User).where(User.id == int(current_user_token["sub"]))).first()
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
+    # current_user = db.exec(select(User).where(User.id == int(current_user_token["sub"]))).first()
+    # if not current_user:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_404_NOT_FOUND,
+    #         detail="User not found"
+    #     )
     
-    # Verify user can manage services
-    if not current_user.is_admin: # Simplified check
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to create services"
-        )
+    # For demo purposes, allow all users to create services
+    # (No admin check needed)
     
     # Check if service with same name and type already exists
     existing_service = db.exec(select(Service).where(
@@ -118,7 +129,9 @@ async def update_service(
     service_id: int,
     service_data: ServiceUpdate,
     db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
+    # Authentication removed for hackathon demo
+    # current_user_token: dict = Depends(require_admin)
+    current_user: User = Depends(get_mock_user)
 ):
     """
     Update an existing service (Admin only).
@@ -156,7 +169,9 @@ async def update_service(
 async def delete_service(
     service_id: int,
     db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
+    # Authentication removed for hackathon demo
+    # current_user_token: dict = Depends(require_admin)
+    current_user: User = Depends(get_mock_user)
 ):
     """
     Delete a service (Admin only).
@@ -255,7 +270,9 @@ async def execute_service(
     service_id: int,
     request_data: ServiceExecuteRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    # Authentication removed for hackathon demo
+    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_mock_user)
 ):
     """
     Execute a service by its ID, proxying the request to the external API.
@@ -296,7 +313,9 @@ async def update_service_status(
     service_id: int,
     status_update: ServiceStatusUpdate,
     db: Session = Depends(get_db),
-    current_user_token: dict = Depends(require_admin)
+    # Authentication removed for hackathon demo
+    # current_user_token: dict = Depends(require_admin)
+    current_user: User = Depends(get_mock_user)
 ):
     """
     Activate or deactivate a service (Admin only).
@@ -361,7 +380,9 @@ async def search_services(
 async def test_service_execution(
     test_request: ServiceTestRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    # Authentication removed for hackathon demo
+    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_mock_user)
 ):
     """
     Test a service configuration without saving it to the database.
@@ -445,7 +466,9 @@ async def get_service_schema(
 async def add_service_to_agent(
     service_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    # Authentication removed for hackathon demo
+    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_mock_user)
 ):
     """
     Add a service to the user's agent (plug-and-play).
@@ -489,7 +512,9 @@ async def add_service_to_agent(
 async def remove_service_from_agent(
     service_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    # Authentication removed for hackathon demo
+    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_mock_user)
 ):
     """
     Remove a service from the user's agent.
@@ -509,7 +534,9 @@ async def remove_service_from_agent(
 @router.get("/user/agent/services", response_model=dict)
 async def get_user_agent_services(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    # Authentication removed for hackathon demo
+    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_mock_user)
 ):
     """
     Get all services added to the user's agent.

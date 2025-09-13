@@ -13,11 +13,8 @@ if TYPE_CHECKING:
 
 class UserBase(SQLModel):
     """Base user model with common fields."""
-    username: str = Field(max_length=50, unique=True, index=True)
-    email: str = Field(max_length=255, unique=True, index=True)
+    username: str = Field(unique=True, index=True, max_length=50)
     is_active: bool = Field(default=True)
-    is_verified: bool = Field(default=False)
-    is_admin: bool = Field(default=False)
 
 
 class User(UserBase, table=True):
@@ -27,7 +24,6 @@ class User(UserBase, table=True):
     __tablename__ = "users"
     
     id: Optional[int] = Field(default=None, primary_key=True, index=True)
-    hashed_password: str = Field(max_length=255)
     
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
     updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
@@ -47,17 +43,16 @@ class User(UserBase, table=True):
     
     class Config:
         table_args = (
-            Index('idx_user_email_active', 'email', 'is_active'),
             Index('idx_user_username_active', 'username', 'is_active'),
         )
 
     def __repr__(self) -> str:
-        return f"<User(id={self.id}, username='{self.username}', email='{self.email}', is_admin={self.is_admin})>"
+        return f"<User(id={self.id}, username='{self.username}')>"
 
 
 class UserCreate(UserBase):
     """Model for creating a new user."""
-    password: str
+    pass
 
 
 class UserRead(UserBase):
@@ -70,7 +65,4 @@ class UserRead(UserBase):
 class UserUpdate(SQLModel):
     """Model for updating user data."""
     username: Optional[str] = None
-    email: Optional[str] = None
     is_active: Optional[bool] = None
-    is_verified: Optional[bool] = None
-    is_admin: Optional[bool] = None
