@@ -1,10 +1,5 @@
 """
-Authentication router with registration, login,         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive"
-        )
-    
-    return success_response(message="User retrieved successfully", data=user)refresh, and email verification.
+Authentication router with simplified username-only registration and login.
 """
 import logging
 from datetime import timedelta
@@ -15,17 +10,13 @@ from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
-from app.core.security import PasswordHandler
 from app.db.database import get_db
 from app.models.user import User, UserCreate
 from app.schemas.auth import (
-    UserRegistration, UserLogin, UserResponse, TokenResponse, 
-    TokenRefresh, TokenRefreshResponse, EmailVerificationResponse,
-    LogoutResponse, PasswordReset, PasswordResetConfirm,
-    AdminUserRegistration, AdminUserResponse
+    UserRegistration, UserLogin, UserResponse, TokenResponse,
+    TokenRefresh, TokenRefreshResponse, AdminUserRegistration, AdminUserResponse
 )
 from app.utils.jwt_handler import jwt_handler
-from app.utils.email_sender import email_sender
 from app.utils import success_response, error_response
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -39,27 +30,27 @@ async def get_current_user(
     """Dependency to get current authenticated user."""
     token = credentials.credentials
     payload = await jwt_handler.verify_token(token, "access")
-    
+
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload"
         )
-    
+
     user = db.exec(select(User).where(User.id == user_id)).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found"
         )
-    
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account is inactive"
         )
-    
+
     return user
 
 
@@ -70,13 +61,11 @@ async def register_user(
     db: Session = Depends(get_db)
 ):
     """
-    Register a new user with username, email, and password.
-    
+    Register a new user with username only.
+
     - **username**: Unique username (3-50 characters, alphanumeric, underscore, hyphen)
-    - **email**: Valid email address (must be unique)
-    - **password**: Strong password (min 8 chars, uppercase, lowercase, digit)
-    
-    Sends verification email after successful registration.
+
+    Creates a user account that can immediately access the application.
     """
     try:
         # Check if username already exists
@@ -86,53 +75,27 @@ async def register_user(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Username already registered"
             )
-        
-        # Check if email already exists
-        existing_email = db.exec(select(User).where(User.email == user_data.email.lower())).first()
-        if existing_email:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Email already registered"
-            )
-        
-        # Validate password strength
-        if not PasswordHandler.validate_password_strength(user_data.password):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password does not meet strength requirements"
-            )
-        
-        # Hash password
-        hashed_password = PasswordHandler.hash_password(user_data.password)
-        
-        # Create new user directly with hashed password
+
+        # Create new user
         new_user = User(
             username=user_data.username.lower(),
-            email=user_data.email.lower(),
-            hashed_password=hashed_password,
-            is_active=True,
-            is_verified=True,
-            is_admin=False
+            is_active=True
         )
 
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
-        
-        # Send verification email
-        # await send_verification_email(new_user, background_tasks)
-        
-        # return {"message": "User registered successfully. Please check your email for verification."}
+
         return success_response(
             message="User registered successfully",
             data={"user_id": new_user.id, "username": new_user.username}
         )
-    
+
     except IntegrityError:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="User with this username or email already exists."
+            detail="Username already exists."
         )
     except Exception as e:
         db.rollback()
@@ -142,7 +105,7 @@ async def register_user(
         )
 
 
-@router.post("/register-admin", response_model=AdminUserResponse, status_code=status.HTTP_201_CREATED, operation_id="register_admin")
+@router.post("/register-admin", status_code=status.HTTP_201_CREATED, operation_id="register_admin")
 async def register_admin_user(
     admin_data: AdminUserRegistration,
     background_tasks: BackgroundTasks,
@@ -150,16 +113,14 @@ async def register_admin_user(
 ):
     """
     Register a new admin user with admin secret key.
-    
+
     - **username**: Unique username (3-50 characters, alphanumeric, underscore, hyphen)
-    - **email**: Valid email address (must be unique)
-    - **password**: Strong password (min 8 chars, uppercase, lowercase, digit, special char)
     - **admin_secret**: Admin creation secret key
-    
+
     Creates an admin user with elevated privileges.
     """
     from app.core.config import settings
-    
+
     try:
         # Verify admin secret
         if admin_data.admin_secret != settings.admin_secret_key:
@@ -167,7 +128,7 @@ async def register_admin_user(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Invalid admin secret key"
             )
-        
+
         # Check if username already exists
         existing_user = db.exec(select(User).where(User.username == admin_data.username.lower())).first()
         if existing_user:
@@ -175,55 +136,30 @@ async def register_admin_user(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Username already registered"
             )
-        
-        # Check if email already exists
-        existing_email = db.exec(select(User).where(User.email == admin_data.email.lower())).first()
-        if existing_email:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Email already registered"
-            )
-        
-        # Validate password strength (admin passwords have stricter requirements)
-        if not PasswordHandler.validate_password_strength(admin_data.password):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password does not meet strength requirements"
-            )
-        
-        # Hash password
-        hashed_password = PasswordHandler.hash_password(admin_data.password)
-        
-        # Create new admin user directly with hashed password
+
+        # Create new admin user
         new_admin = User(
             username=admin_data.username.lower(),
-            email=admin_data.email.lower(),
-            hashed_password=hashed_password,
             is_active=True,
-            is_verified=True,  # Admin users are auto-verified
             is_admin=True
         )
 
         db.add(new_admin)
         db.commit()
         db.refresh(new_admin)
-        
-        return success_response(
-            message="Admin user created successfully",
-            data=AdminUserResponse(
-                message="Admin user created successfully",
-                user_id=str(new_admin.id),
-                username=new_admin.username,
-                email=new_admin.email,
-                is_admin=True
-            )
-        )
-    
+
+        return {
+            "message": "Admin user created successfully",
+            "user_id": str(new_admin.id),
+            "username": new_admin.username,
+            "is_admin": True
+        }
+
     except IntegrityError:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="User with this username or email already exists."
+            detail="Username already exists."
         )
     except Exception as e:
         db.rollback()
@@ -240,30 +176,23 @@ async def login_user(
 ):
     """
     Authenticate user and return access and refresh tokens.
-    
+
     - **username**: Registered username
-    - **password**: Correct password
     """
     user = db.exec(select(User).where(User.username == user_data.username.lower())).first()
-    
-    if not user or not PasswordHandler.verify_password(user_data.password, user.hashed_password):
+
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
+            detail="Username not found"
         )
-        
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive. Please contact support."
         )
-        
-    if not user.is_verified:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email not verified. Please check your inbox for a verification link."
-        )
-        
+
     # Generate tokens
     access_token = jwt_handler.create_access_token(
         {"sub": str(user.id), "is_admin": user.is_admin}, timedelta(minutes=settings.jwt_access_token_expire_minutes)
@@ -271,7 +200,7 @@ async def login_user(
     refresh_token = jwt_handler.create_refresh_token(
         {"sub": str(user.id), "is_admin": user.is_admin }
     )
-    
+
     user_data = UserResponse.from_orm(user).dict()
     # Convert datetime fields to ISO format strings
     if user_data.get('created_at'):
@@ -300,247 +229,27 @@ async def refresh_access_token(
     Refresh access token using a valid refresh token.
     """
     payload = await jwt_handler.verify_token(refresh_data.refresh_token, "refresh")
-    
+
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token"
         )
-        
+
     user = db.exec(select(User).where(User.id == user_id)).first()
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive"
         )
-        
+
     # Generate new access token
     new_access_token = jwt_handler.create_access_token(
         {"sub": str(user.id), "is_admin": user.is_admin}, timedelta(minutes=settings.jwt_access_token_expire_minutes)
     )
-    
+
     return success_response(
         message="Token refreshed successfully",
         data={"access_token": new_access_token, "token_type": "bearer"}
     )
-
-
-async def send_verification_email(user: User, background_tasks: BackgroundTasks):
-    """Helper to send verification email."""
-    verification_token = jwt_handler.create_email_verification_token(user.email)
-    verification_url = f"http://localhost:{settings.port}/auth/verify-email?token={verification_token}"
-    
-    background_tasks.add_task(
-        email_sender.send_verification_email,
-        recipient_email=user.email,
-        username=user.username,
-        verification_url=verification_url
-    )
-
-
-@router.get("/verify-email", response_model=EmailVerificationResponse, operation_id="verify_email")
-async def verify_user_email(token: str, db: Session = Depends(get_db)):
-    """
-    Verify user's email address using the token from email.
-    """
-    try:
-        payload = await jwt_handler.verify_token(token, "email_verification")
-        user_id = payload.get("sub")
-        
-        if not user_id:
-            raise HTTPException(status_code=400, detail="Invalid verification token payload.")
-            
-        user = db.exec(select(User).where(User.id == user_id)).first()
-        
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found.")
-            
-        if user.is_verified:
-            return success_response(message="Email already verified.")
-            
-        user.is_verified = True
-        db.add(user)
-        db.commit()
-        
-        return success_response(message="Email verified successfully. You can now log in.")
-        
-    except HTTPException as e:
-        # Re-raise HTTP exceptions to be handled by FastAPI
-        raise e
-    except Exception:
-        # Catch any other exceptions (e.g., token expiration)
-        raise HTTPException(status_code=400, detail="Invalid or expired verification token.")
-
-
-@router.post("/resend-verification", status_code=status.HTTP_200_OK, operation_id="resend_verification")
-async def resend_verification_email(
-    email_data: Dict[str, str],
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
-    """
-    Resend verification email if the user has not yet verified their account.
-    """
-    email = email_data.get("email")
-    if not email:
-        raise HTTPException(status_code=400, detail="Email is required.")
-
-    user = db.exec(select(User).where(User.email == email.lower())).first()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="User with this email not found.")
-        
-    if user.is_verified:
-        raise HTTPException(status_code=400, detail="Email is already verified.")
-        
-    await send_verification_email(user, background_tasks)
-    
-    return success_response(message="Verification email sent. Please check your inbox.")
-
-
-@router.post("/logout", response_model=LogoutResponse, operation_id="logout")
-async def logout_user(
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Logs out the current user. 
-    Note: This is a placeholder as JWT is stateless. Client-side should handle token removal.
-    """
-    # In a real-world scenario with token blacklisting, you would add the token to a blacklist here.
-    return success_response(message=f"User {current_user.username} logged out successfully.")
-
-
-@router.post("/request-password-reset", status_code=status.HTTP_200_OK, operation_id="request_reset_password")
-async def request_password_reset(
-    email_data: Dict[str, str],
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
-    """
-    Request a password reset. Sends a reset link to the user's email.
-    """
-    email = email_data.get("email")
-    if not email:
-        raise HTTPException(status_code=400, detail="Email is required.")
-
-    user = db.exec(select(User).where(User.email == email.lower())).first()
-    
-    if user and user.is_active:
-        # Generate password reset token
-        reset_token = jwt_handler.create_access_token(
-            {"sub": str(user.id), "type": "password_reset"}, 
-            timedelta(minutes=30)  # 30 minutes for password reset
-        )
-        reset_url = f"http://localhost:{settings.port}/auth/reset-password?token={reset_token}"
-        
-        # Send email in the background
-        background_tasks.add_task(
-            email_sender.send_password_reset_email,
-            recipient_email=user.email,
-            username=user.username,
-            reset_url=reset_url
-        )
-        
-    # Always return a success message to prevent user enumeration
-    return success_response(message="If an account with that email exists, a password reset link has been sent.")
-
-
-@router.post("/reset-password", status_code=status.HTTP_200_OK, operation_id="reset_password")
-async def reset_password(
-    reset_data: PasswordResetConfirm,
-    db: Session = Depends(get_db)
-):
-    """
-    Reset user's password using the token from the reset link.
-    """
-    try:
-        payload = await jwt_handler.verify_token(reset_data.token, "password_reset")
-        user_id = payload.get("sub")
-        
-        if not user_id:
-            raise HTTPException(status_code=400, detail="Invalid reset token payload.")
-            
-        user = db.exec(select(User).where(User.id == user_id)).first()
-        
-        if not user or not user.is_active:
-            raise HTTPException(status_code=404, detail="User not found or inactive.")
-            
-        # Validate new password
-        if not PasswordHandler.validate_password_strength(reset_data.new_password):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="New password does not meet strength requirements."
-            )
-            
-        # Update password
-        user.hashed_password = PasswordHandler.hash_password(reset_data.new_password)
-        db.add(user)
-        db.commit()
-        
-        return success_response(message="Password has been reset successfully.")
-        
-    except HTTPException as e:
-        raise e
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid or expired password reset token.")
-
-
-@router.get("/me", response_model=UserResponse, operation_id="get_info")
-async def get_current_user_profile(
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Get the profile of the currently authenticated user.
-    """
-    return success_response(
-        message="User profile retrieved successfully",
-        data=UserResponse.from_orm(current_user)
-    )
-
-
-@router.put("/me", response_model=UserResponse, operation_id="update_info")
-async def update_current_user_profile(
-    user_update: Dict[str, Any],
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Update the profile of the currently authenticated user.
-    
-    Allowed fields for update: `username`, `email`.
-    """
-    update_data = user_update.copy()
-    
-    # Prevent updating protected fields
-    for field in ["is_active", "is_verified", "is_admin", "id", "hashed_password"]:
-        if field in update_data:
-            del update_data[field]
-            
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No valid fields to update.")
-
-    # Check for username/email conflicts if they are being changed
-    if "username" in update_data and update_data["username"].lower() != current_user.username:
-        existing_user = db.exec(select(User).where(User.username == update_data["username"].lower())).first()
-        if existing_user:
-            raise HTTPException(status_code=409, detail="Username already taken.")
-        current_user.username = update_data["username"].lower()
-
-    if "email" in update_data and update_data["email"].lower() != current_user.email:
-        existing_email = db.exec(select(User).where(User.email == update_data["email"].lower())).first()
-        if existing_email:
-            raise HTTPException(status_code=409, detail="Email already registered.")
-        current_user.email = update_data["email"].lower()
-        current_user.is_verified = False # Require re-verification for new email
-        # Consider sending a new verification email here
-        
-    db.add(current_user)
-    db.commit()
-    db.refresh(current_user)
-    
-    return success_response(
-        message="User profile updated successfully",
-        data=UserResponse.from_orm(current_user)
-    )
-

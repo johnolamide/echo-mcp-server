@@ -7,14 +7,7 @@ from .auth import (
     UserRegistration,
     UserLogin,
     UserResponse,
-    TokenResponse,
-    TokenRefresh,
-    TokenRefreshResponse,
-    EmailVerification,
-    EmailVerificationResponse,
-    LogoutResponse,
-    PasswordReset,
-    PasswordResetConfirm,
+    AdminUserResponse,
 )
 
 # Service schemas
@@ -57,14 +50,7 @@ __all__ = [
     "UserRegistration",
     "UserLogin", 
     "UserResponse",
-    "TokenResponse",
-    "TokenRefresh",
-    "TokenRefreshResponse",
-    "EmailVerification",
-    "EmailVerificationResponse",
-    "LogoutResponse",
-    "PasswordReset",
-    "PasswordResetConfirm",
+    "AdminUserResponse",
     # Service schemas
     "ServiceCreate",
     "ServiceUpdate",

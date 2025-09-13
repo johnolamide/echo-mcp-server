@@ -1,17 +1,15 @@
 """
-Authentication schemas for API validation.
+Simplified authentication schemas for username-only access.
 """
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, Field, validator
 import re
 
 
 class UserRegistration(BaseModel):
     """Schema for user registration."""
     username: str = Field(..., min_length=3, max_length=50, description="Username for the account")
-    email: EmailStr = Field(..., description="Email address for the account")
-    password: str = Field(..., min_length=8, max_length=128, description="Password for the account")
     
     @validator('username')
     def validate_username(cls, v):
@@ -20,23 +18,10 @@ class UserRegistration(BaseModel):
             raise ValueError('Username can only contain letters, numbers, underscores, and hyphens')
         return v.lower()
     
-    @validator('password')
-    def validate_password(cls, v):
-        """Validate password strength."""
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one digit')
-        return v
-    
     class Config:
         json_schema_extra = {
             "example": {
-                "username": "johndoe",
-                "email": "john.doe@example.com",
-                "password": "SecurePass123"
+                "username": "johndoe"
             }
         }
 
@@ -44,8 +29,6 @@ class UserRegistration(BaseModel):
 class AdminUserRegistration(BaseModel):
     """Schema for admin user registration."""
     username: str = Field(..., min_length=3, max_length=50, description="Username for the admin account")
-    email: EmailStr = Field(..., description="Email address for the admin account")
-    password: str = Field(..., min_length=8, max_length=128, description="Password for the admin account")
     admin_secret: str = Field(..., description="Admin creation secret key")
     
     @validator('username')
@@ -55,25 +38,10 @@ class AdminUserRegistration(BaseModel):
             raise ValueError('Username can only contain letters, numbers, underscores, and hyphens')
         return v.lower()
     
-    @validator('password')
-    def validate_password(cls, v):
-        """Validate password strength."""
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one digit')
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
-            raise ValueError('Password must contain at least one special character')
-        return v
-    
     class Config:
         json_schema_extra = {
             "example": {
                 "username": "admin",
-                "email": "admin@example.com",
-                "password": "AdminSecure123!",
                 "admin_secret": "your-admin-secret-key"
             }
         }
@@ -84,13 +52,15 @@ class AdminUserResponse(BaseModel):
     message: str = Field(..., description="Success message")
     user_id: str = Field(..., description="Created admin user ID")
     username: str = Field(..., description="Admin username")
+    is_admin: bool = Field(..., description="Admin status")
     
     class Config:
         json_schema_extra = {
             "example": {
                 "message": "Admin user created successfully",
                 "user_id": "1",
-                "username": "admin"
+                "username": "admin",
+                "is_admin": True
             }
         }
 
@@ -98,13 +68,11 @@ class AdminUserResponse(BaseModel):
 class UserLogin(BaseModel):
     """Schema for user login."""
     username: str = Field(..., description="Username for login")
-    password: str = Field(..., description="Password for login")
     
     class Config:
         json_schema_extra = {
             "example": {
-                "username": "john",
-                "password": "SecurePass123"
+                "username": "john"
             }
         }
 
@@ -221,42 +189,5 @@ class LogoutResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "message": "Successfully logged out"
-            }
-        }
-
-
-class PasswordReset(BaseModel):
-    """Schema for password reset request."""
-    email: EmailStr = Field(..., description="Email address for password reset")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "email": "john.doe@example.com"
-            }
-        }
-
-
-class PasswordResetConfirm(BaseModel):
-    """Schema for password reset confirmation."""
-    token: str = Field(..., description="Password reset token")
-    new_password: str = Field(..., min_length=8, max_length=128, description="New password")
-    
-    @validator('new_password')
-    def validate_password(cls, v):
-        """Validate password strength."""
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one digit')
-        return v
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "token": "reset_token_here",
-                "new_password": "NewSecurePass123"
             }
         }

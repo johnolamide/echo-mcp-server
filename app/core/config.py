@@ -33,17 +33,17 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
-        """Construct database connection URL - using SQLite for demo."""
+        """Construct database connection URL - using TiDB for production."""
         # If DATABASE_URL is provided, use it directly
         if self.database_url_env:
             return self.database_url_env
             
-        # For hackathon demo, use SQLite instead of TiDB/MySQL
-        return f"sqlite:///{self.sqlite_database}"
+        # Use TiDB/MySQL for production
+        password_part = f":{self.tidb_password}" if self.tidb_password else ""
+        return f"mysql+mysqlconnector://{self.tidb_user}{password_part}@{self.tidb_host}:{self.tidb_port}/{self.tidb_database}?charset=utf8mb4"
         
-        # Legacy TiDB/MySQL URL construction (commented out for demo)
-        # password_part = f":{self.tidb_password}" if self.tidb_password else ""
-        # return f"mysql+mysqlconnector://{self.tidb_user}{password_part}@{self.tidb_host}:{self.tidb_port}/{self.tidb_database}?charset=utf8mb4"
+        # SQLite fallback for development (commented out)
+        # return f"sqlite:///{self.sqlite_database}"
     
     # Redis settings
     redis_host: str = "localhost"

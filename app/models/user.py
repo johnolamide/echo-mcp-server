@@ -15,6 +15,7 @@ class UserBase(SQLModel):
     """Base user model with common fields."""
     username: str = Field(unique=True, index=True, max_length=50)
     is_active: bool = Field(default=True)
+    is_admin: bool = Field(default=False)
 
 
 class User(UserBase, table=True):

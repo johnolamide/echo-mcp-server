@@ -329,10 +329,10 @@ async def root():
 
 # Register routers (routers already have their own prefixes defined)
 # Authentication router removed for hackathon demo
-# app.include_router(
-#     auth.router,
-#     tags=["Authentication"]
-# )
+app.include_router(
+    auth.router,
+    tags=["Authentication"]
+)
 
 app.include_router(
     chat.router,
