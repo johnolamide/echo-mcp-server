@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Set
 from datetime import datetime
 
 from fastapi import WebSocket, WebSocketDisconnect
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.db.redis_client import redis_pubsub, redis_cache
 from app.models.user import User
@@ -232,14 +232,14 @@ class ChatWebSocketHandler:
     
     async def _handle_send_message(self, websocket: WebSocket, user: User, data: dict, db: Session):
         """Handle sending a chat message via WebSocket."""
-        receiver_id = data.get("receiver_id")
+        receiver_username = data.get("receiver_username")
         content = data.get("content")
         
-        if not receiver_id or not content:
+        if not receiver_username or not content:
             await self.connection_manager.send_personal_message({
                 "type": "error",
                 "data": {
-                    "message": "receiver_id and content are required",
+                    "message": "receiver_username and content are required",
                     "timestamp": datetime.utcnow().isoformat()
                 }
             }, websocket)
@@ -247,7 +247,7 @@ class ChatWebSocketHandler:
         
         # Validate receiver exists
         receiver = db.query(User).filter(
-            User.id == receiver_id,
+            User.username == receiver_username,
             User.is_active == True,
             User.is_verified == True
         ).first()
@@ -266,7 +266,7 @@ class ChatWebSocketHandler:
         try:
             new_message = ChatMessage(
                 sender_id=user.id,
-                receiver_id=receiver_id,
+                receiver_id=receiver.id,
                 content=content.strip(),
                 is_read=False
             )
@@ -295,12 +295,12 @@ class ChatWebSocketHandler:
             
             # Broadcast message to both users
             await self.connection_manager.broadcast_message(
-                message_response, user.id, receiver_id
+                message_response, user.id, receiver.id
             )
             
             # Also publish to Redis for scalability across multiple server instances
             await self.connection_manager.publish_message_to_redis(
-                message_response, receiver_id
+                message_response, receiver.id
             )
             
         except Exception as e:
@@ -316,13 +316,27 @@ class ChatWebSocketHandler:
     
     async def _handle_typing_indicator(self, user: User, data: dict):
         """Handle typing indicator updates."""
-        target_user_id = data.get("target_user_id")
+        target_username = data.get("target_username")
         is_typing = data.get("is_typing", False)
         
-        if target_user_id:
-            await self.connection_manager.handle_typing_indicator(
-                user.id, target_user_id, is_typing
-            )
+        if target_username:
+            # Look up target user by username
+            from app.db.database import get_db
+            
+            # Get a database session
+            db = next(get_db())
+            try:
+                target_user = db.exec(select(User).where(
+                    User.username == target_username,
+                    User.is_active == True
+                )).first()
+                
+                if target_user:
+                    await self.connection_manager.handle_typing_indicator(
+                        user.id, target_user.id, is_typing
+                    )
+            finally:
+                db.close()
     
     async def _handle_mark_read(self, user: User, data: dict, db: Session):
         """Handle marking messages as read."""

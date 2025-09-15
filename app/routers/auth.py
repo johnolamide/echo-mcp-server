@@ -3,8 +3,8 @@ Authentication router with simplified username-only registration and login.
 """
 import logging
 from datetime import timedelta
-from typing import Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from typing import Optional, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
@@ -52,6 +52,33 @@ async def get_current_user(
         )
 
     return user
+
+
+async def get_current_user_optional(
+    request: Request,
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """Optional dependency to get current authenticated user."""
+    # Get authorization header
+    auth_header = request.headers.get("authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+
+    try:
+        token = auth_header.split(" ")[1]
+        payload = await jwt_handler.verify_token(token, "access")
+
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+
+        user = db.exec(select(User).where(User.id == user_id)).first()
+        if not user or not user.is_active:
+            return None
+
+        return user
+    except:
+        return None
 
 
 @router.post("/register", response_model=Dict[str, str], status_code=status.HTTP_201_CREATED, operation_id="register_user")
@@ -195,10 +222,10 @@ async def login_user(
 
     # Generate tokens
     access_token = jwt_handler.create_access_token(
-        {"sub": str(user.id), "is_admin": user.is_admin}, timedelta(minutes=settings.jwt_access_token_expire_minutes)
+        {"sub": str(user.id), "username": user.username, "is_admin": user.is_admin}, timedelta(minutes=settings.jwt_access_token_expire_minutes)
     )
     refresh_token = jwt_handler.create_refresh_token(
-        {"sub": str(user.id), "is_admin": user.is_admin }
+        {"sub": str(user.id), "username": user.username, "is_admin": user.is_admin }
     )
 
     user_data = UserResponse.from_orm(user).dict()
@@ -246,7 +273,7 @@ async def refresh_access_token(
 
     # Generate new access token
     new_access_token = jwt_handler.create_access_token(
-        {"sub": str(user.id), "is_admin": user.is_admin}, timedelta(minutes=settings.jwt_access_token_expire_minutes)
+        {"sub": str(user.id), "username": user.username, "is_admin": user.is_admin}, timedelta(minutes=settings.jwt_access_token_expire_minutes)
     )
 
     return success_response(

@@ -3,7 +3,7 @@ Chat router for message sending and chat history functionality.
 """
 import json
 import logging
-from typing import List, Optional
+from typing import List, Optional, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, WebSocket, WebSocketDisconnect
 from sqlmodel import Session, select, and_, or_, desc, func
 
@@ -16,7 +16,7 @@ from app.schemas.chat import (
     UserStatusResponse, UserBasicInfo, UsersListResponse
 )
 # Authentication removed for hackathon demo
-# from app.routers.auth import get_current_user
+from app.routers.auth import get_current_user, get_current_user_optional
 from app.utils.websocket_manager import connection_manager, chat_handler
 # from app.utils.jwt_handler import verify_token
 from app.utils import success_response, error_response
@@ -28,44 +28,62 @@ logger = logging.getLogger(__name__)
 # Mock user for hackathon demo (no authentication required)
 def get_mock_user() -> User:
     """Return a mock user for demo purposes."""
-    return User(
-        id=1,
-        email="demo@example.com",
-        first_name="Demo",
-        last_name="User",
-        is_active=True,
-        is_admin=False
-    )
+    # For hackathon demo, try to get the actual user from token if available
+    # If no token, return default mock user
+    try:
+        from fastapi import Request
+        from app.utils.jwt_handler import jwt_handler
+        
+        # This is a simplified approach - in a real app you'd use proper dependency injection
+        # For now, we'll return a mock user that matches the frontend expectation
+        return User(
+            id=1,  # Keep as 1 for consistency with existing data
+            email="demo@example.com",
+            first_name="Demo",
+            last_name="User",
+            is_active=True,
+            is_admin=False
+        )
+    except:
+        return User(
+            id=1,
+            email="demo@example.com", 
+            first_name="Demo",
+            last_name="User",
+            is_active=True,
+            is_admin=False
+        )
 
 
 @router.post("/send", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, operation_id="send_message")
 async def send_message(
     message_data: MessageSend,
     # Authentication removed for hackathon demo
-    # current_user: User = Depends(get_current_user),
-    current_user: User = Depends(get_mock_user),
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
     Send a message to another user.
     
-    - **receiver_id**: ID of the user to send the message to
+    - **receiver_username**: Username of the user to send the message to
     - **content**: Message content (1-2000 characters)
     
     Returns the created message with sender and receiver information.
     """
+    # For demo purposes, use a default user ID if not authenticated
+    sender_id = current_user.id if current_user else 1
+    
     # Allow sending messages to yourself for testing purposes
-    # if message_data.receiver_id == current_user.id:
+    # if message_data.receiver_username == current_user.username if current_user else False:
     #     raise HTTPException(
     #         status_code=status.HTTP_400_BAD_REQUEST,
     #         detail="Cannot send message to yourself"
     #     )
     
-    # Check if receiver exists and is active
+    # Check if receiver exists and is active by username
     receiver = db.exec(select(User).where(
-        User.id == message_data.receiver_id,
-        User.is_active == True,
-        User.is_verified == True
+        User.username == message_data.receiver_username,
+        User.is_active == True
     )).first()
     
     if not receiver:
@@ -77,8 +95,8 @@ async def send_message(
     try:
         # Create new chat message
         new_message = ChatMessage(
-            sender_id=current_user.id,
-            receiver_id=message_data.receiver_id,
+            sender_id=sender_id,
+            receiver_id=receiver.id,
             content=message_data.content,
             is_read=False
         )
@@ -114,38 +132,45 @@ async def send_message(
         )
 
 
-@router.get("/history/{user_id}", response_model=ChatHistory, operation_id="get_chat_history")
+@router.get("/history/{username}", response_model=ChatHistory, operation_id="get_chat_history")
 async def get_chat_history(
-    user_id: int,
+    username: str,
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(50, ge=1, le=100, description="Messages per page"),
-    # Authentication removed for hackathon demo
-    # current_user: User = Depends(get_current_user),
-    current_user: User = Depends(get_mock_user),
     db: Session = Depends(get_db)
 ):
     """
     Get chat history with another user.
     
-    - **user_id**: ID of the other user in the conversation
+    - **username**: Username of the other user in the conversation
     - **limit**: Max number of messages to return
-    - **offset**: Number of messages to skip for pagination
+    - **page**: Page number for pagination
     
     Returns paginated chat history.
     """
-    # Check if the other user exists
-    other_user = db.get(User, user_id)
+    # For demo purposes, use a default user ID
+    current_user_id = 1
+    
+    # Check if the other user exists by username
+    other_user = db.exec(select(User).where(
+        User.username == username,
+        User.is_active == True
+    )).first()
+    
     if not other_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
         
+    # Calculate offset from page and limit
+    offset = (page - 1) * limit
+        
     # Query for messages between the two users
     messages_query = select(ChatMessage).where(
         or_(
-            and_(ChatMessage.sender_id == current_user.id, ChatMessage.receiver_id == other_user_id),
-            and_(ChatMessage.sender_id == other_user_id, ChatMessage.receiver_id == current_user.id)
+            and_(ChatMessage.sender_id == current_user_id, ChatMessage.receiver_id == other_user.id),
+            and_(ChatMessage.sender_id == other_user.id, ChatMessage.receiver_id == current_user_id)
         )
     ).order_by(desc(ChatMessage.timestamp)).offset(offset).limit(limit)
     
@@ -154,8 +179,8 @@ async def get_chat_history(
     # Get total count for pagination
     total_count_query = select(func.count(ChatMessage.id)).where(
         or_(
-            and_(ChatMessage.sender_id == current_user.id, ChatMessage.receiver_id == other_user_id),
-            and_(ChatMessage.sender_id == other_user_id, ChatMessage.receiver_id == current_user.id)
+            and_(ChatMessage.sender_id == current_user_id, ChatMessage.receiver_id == other_user.id),
+            and_(ChatMessage.sender_id == other_user.id, ChatMessage.receiver_id == current_user_id)
         )
     )
     total_count = db.exec(total_count_query).one()
@@ -171,7 +196,7 @@ async def get_chat_history(
                 sender_id=msg.sender_id,
                 receiver_id=msg.receiver_id,
                 content=msg.content,
-                timestamp=msg.timestamp,
+                timestamp=msg.timestamp.isoformat() if msg.timestamp else None,
                 is_read=msg.is_read,
                 sender_username=sender.username if sender else "Unknown",
                 receiver_username=receiver.username if receiver else "Unknown"
@@ -180,8 +205,8 @@ async def get_chat_history(
     
     # Count unread messages from the other user to current user
     unread_count_query = select(func.count(ChatMessage.id)).where(
-        ChatMessage.sender_id == other_user_id,
-        ChatMessage.receiver_id == current_user.id,
+        ChatMessage.sender_id == other_user.id,
+        ChatMessage.receiver_id == current_user_id,
         ChatMessage.is_read == False
     )
     unread_count = db.exec(unread_count_query).one()
@@ -192,9 +217,9 @@ async def get_chat_history(
             messages=formatted_messages,
             total_messages=total_count,
             unread_count=unread_count,
-            other_user_id=other_user_id,
+            other_user_id=other_user.id,
             other_username=other_user.username
-        )
+        ).model_dump()
     )
 
 
@@ -248,8 +273,7 @@ async def mark_messages_as_read(
 @router.get("/conversations", response_model=ConversationList, operation_id="get_user_conversations")
 async def get_user_conversations(
     # Authentication removed for hackathon demo
-    # current_user: User = Depends(get_current_user),
-    current_user: User = Depends(get_mock_user),
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of conversations to return")
 ):
@@ -258,11 +282,14 @@ async def get_user_conversations(
     
     A conversation is defined as a unique user with whom messages have been exchanged.
     """
+    # For demo purposes, use a default user ID if not authenticated
+    current_user_id = current_user.id if current_user else 1
+    
     # Get all messages involving the current user, ordered by timestamp desc
     all_messages = db.exec(select(ChatMessage).where(
         or_(
-            ChatMessage.sender_id == current_user.id,
-            ChatMessage.receiver_id == current_user.id
+            ChatMessage.sender_id == current_user_id,
+            ChatMessage.receiver_id == current_user_id
         )
     ).order_by(ChatMessage.timestamp.desc())).all()
     
@@ -272,7 +299,7 @@ async def get_user_conversations(
     
     for msg in all_messages:
         # Determine the other user in the conversation
-        other_user_id = msg.receiver_id if msg.sender_id == current_user.id else msg.sender_id
+        other_user_id = msg.receiver_id if msg.sender_id == current_user_id else msg.sender_id
         
         # Skip if we already have this conversation (we want the latest message)
         if other_user_id in conversations_dict:
@@ -286,7 +313,7 @@ async def get_user_conversations(
         # Count unread messages from this user
         unread_count = db.exec(select(func.count(ChatMessage.id)).where(
             ChatMessage.sender_id == other_user_id,
-            ChatMessage.receiver_id == current_user.id,
+            ChatMessage.receiver_id == current_user_id,
             ChatMessage.is_read == False
         )).one()
         
@@ -295,8 +322,8 @@ async def get_user_conversations(
         # Count total messages in this conversation
         total_messages = db.exec(select(func.count(ChatMessage.id)).where(
             or_(
-                and_(ChatMessage.sender_id == current_user.id, ChatMessage.receiver_id == other_user_id),
-                and_(ChatMessage.sender_id == other_user_id, ChatMessage.receiver_id == current_user.id)
+                and_(ChatMessage.sender_id == current_user_id, ChatMessage.receiver_id == other_user_id),
+                and_(ChatMessage.sender_id == other_user_id, ChatMessage.receiver_id == current_user_id)
             )
         )).one()
         
@@ -306,7 +333,7 @@ async def get_user_conversations(
             "last_message": {
                 "content": msg.content,
                 "timestamp": msg.timestamp.isoformat(),
-                "is_from_me": msg.sender_id == current_user.id
+                "is_from_me": msg.sender_id == current_user_id
             },
             "unread_count": unread_count,
             "total_messages": total_messages
@@ -367,9 +394,8 @@ async def get_all_online_users(
 
 @router.get("/users", response_model=UsersListResponse, operation_id="get_chat_users")
 async def get_chat_users(
-    # Authentication removed for hackathon demo
-    # current_user: User = Depends(get_current_user),
-    current_user: User = Depends(get_mock_user),
+    # For demo purposes, make authentication optional
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
@@ -378,12 +404,17 @@ async def get_chat_users(
     This endpoint returns basic user information (ID, username, online status)
     for all active and verified users except the current user.
     """
-    # Get all active and verified users except the current user
-    users = db.exec(select(User).where(
-        User.id != current_user.id,
-        User.is_active == True,
-        User.is_verified == True
-    ).order_by(User.username)).all()
+    # Get all active users except the current user (if authenticated)
+    current_user_id = current_user.id if current_user else None
+    
+    if current_user_id:
+        users = db.exec(select(User).where(
+            User.id != current_user_id,
+            User.is_active == True
+        ).order_by(User.username)).all()
+    else:
+        # If no authentication, return all active users
+        users = db.exec(select(User).where(User.is_active == True).order_by(User.username)).all()
     
     # Get online user IDs
     online_user_ids = await connection_manager.get_online_users()

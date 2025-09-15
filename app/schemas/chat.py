@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, validator
 
 class MessageSend(BaseModel):
     """Schema for sending a chat message."""
-    receiver_id: int = Field(..., gt=0, description="ID of the message receiver")
+    receiver_username: str = Field(..., min_length=1, max_length=50, description="Username of the message receiver")
     content: str = Field(..., min_length=1, max_length=2000, description="Message content")
     
     @validator('content')
@@ -21,7 +21,7 @@ class MessageSend(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "receiver_id": 2,
+                "receiver_username": "johndoe",
                 "content": "Hello! How are you doing today?"
             }
         }

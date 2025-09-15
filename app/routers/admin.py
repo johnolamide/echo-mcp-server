@@ -67,10 +67,21 @@ async def get_all_users(
     # Apply pagination and ordering
     users = db.exec(query.order_by(User.created_at.desc()).offset(offset).limit(limit)).all()
     
+    # Convert users to dict and handle datetime serialization
+    users_data = []
+    for user in users:
+        user_dict = user.dict()
+        # Convert datetime objects to ISO format strings
+        if user.created_at:
+            user_dict['created_at'] = user.created_at.isoformat()
+        if user.updated_at:
+            user_dict['updated_at'] = user.updated_at.isoformat()
+        users_data.append(user_dict)
+    
     return success_response(
         message="Users retrieved successfully",
         data=UserListResponse(
-            users=users,
+            users=users_data,
             total=total_count,
             active_count=active_count,
             verified_count=0,  # Not applicable in demo

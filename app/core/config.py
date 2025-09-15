@@ -70,14 +70,27 @@ class Settings(BaseSettings):
     smtp_password: Optional[str] = None
     email_from: Optional[str] = None
     
-    # CORS settings - Temporarily disabled for testing
+    # CORS settings
+    cors_origins_env: Optional[str] = Field(default=None, alias="CORS_ORIGINS")
     cors_origins: list = ["*"]
     cors_allow_credentials: bool = True
     cors_allow_methods: list = ["*"]
     cors_allow_headers: list = ["*"]
-    cors_allow_credentials: bool = True
-    cors_allow_methods: list = ["*"]
-    cors_allow_headers: list = ["*"]
+    
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v, info):
+        """Parse CORS origins from environment variable or list."""
+        # Check if CORS_ORIGINS environment variable is set
+        cors_origins_env = info.data.get("cors_origins_env")
+        if cors_origins_env:
+            import json
+            try:
+                return json.loads(cors_origins_env)
+            except json.JSONDecodeError:
+                # Fallback to splitting comma-separated string
+                return [origin.strip() for origin in cors_origins_env.split(",")]
+        return v
     
     # Security settings
     password_min_length: int = 8
