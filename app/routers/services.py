@@ -242,6 +242,22 @@ async def list_services(
     )
 
 
+# Add alias route for /services (without trailing slash) to handle frontend calls
+@router.get("", response_model=ServiceList, include_in_schema=False)
+async def list_services_alias(
+    type: Optional[str] = Query(None, description="Filter by service type"),
+    is_active: bool = Query(True, description="Filter by active status"),
+    search: Optional[str] = Query(None, description="Search by name or description"),
+    limit: int = Query(50, ge=1, le=100, description="Limit number of results"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
+    db: Session = Depends(get_db)
+):
+    """
+    Alias for list_services to handle /services without trailing slash.
+    """
+    return await list_services(type, is_active, search, limit, offset, db)
+
+
 @router.get("/{service_id}", response_model=ServiceDetailResponse)
 async def get_service_details(
     service_id: int,
