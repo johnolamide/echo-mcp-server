@@ -1,6 +1,14 @@
 # Echo MCP Server
 
-A modern, scalable FastAPI backend application with real-time chat functionality, user authentication, and service management. Built with SQLModel, TiDB, Redis, and Docker for production-ready deployment.
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green.svg)](https://fastapi.tiangolo.com/)
+[![TiDB](https://img.shields.io/badge/TiDB-MySQL--Compatible-orange.svg)](https://www.pingcap.com/tidb/)
+[![Redis](https://img.shields.io/badge/Redis-7+-red.svg)](https://redis.io/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![WebSocket](https://img.shields.io/badge/WebSocket-Real--Time-purple.svg)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets)
+[![AWS](https://img.shields.io/badge/AWS-ECS--Fargate-orange.svg)](https://aws.amazon.com/)
+
+A comprehensive backend API server for the Echo MCP (Model Context Protocol) system that powers personalized AI agents. This server provides user authentication, real-time chat functionality, service management, and external API integrations to enable seamless agent-service interactions while ensuring complete user data isolation and security.
 
 ## 🚀 Features
 
@@ -146,8 +154,6 @@ Register a new user account.
 ```json
 {
   "username": "johndoe",
-  "email": "john@example.com",
-  "password": "SecurePassword123!"
 }
 ```
 
@@ -169,8 +175,6 @@ curl -X POST http://localhost:8000/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "username": "johndoe",
-    "email": "john@example.com",
-    "password": "SecurePassword123!"
   }'
 ```
 
@@ -185,7 +189,6 @@ Authenticate user and receive JWT tokens.
 ```json
 {
   "email": "john@example.com",
-  "password": "SecurePassword123!"
 }
 ```
 
@@ -217,7 +220,6 @@ curl -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "john@example.com",
-    "password": "SecurePassword123!"
   }'
 ```
 
@@ -276,8 +278,6 @@ Create an admin user account with elevated privileges.
 ```json
 {
   "username": "admin",
-  "email": "admin@example.com",
-  "password": "AdminSecure123!",
   "admin_secret": "your-admin-secret-key"
 }
 ```
@@ -301,8 +301,6 @@ curl -X POST http://localhost:8000/auth/create-admin \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
-    "email": "admin@example.com",
-    "password": "AdminSecure123!",
     "admin_secret": "change-this-admin-secret-in-production"
   }'
 ```
